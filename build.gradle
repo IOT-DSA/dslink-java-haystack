@@ -13,6 +13,7 @@ repositories {
  
 dependencies {
     compile 'org.iot-dsa:dslink:0.1.2'
+    compile fileTree('external')
 }
 
 run {
