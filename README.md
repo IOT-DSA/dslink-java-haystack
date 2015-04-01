@@ -7,8 +7,8 @@ located at <http://project-haystack.org/>
 
 ## Distributions
 
-Creating a distributable allows you to distribute your local changes. This
-package can be ran anywhere independent of Gradle.
+Distributions can be ran independent of Gradle and anywhere Java is installed.
+Prebuilt distributions can be found [here](https://drone.io/github.com/IOT-DSA/dslink-java-haystack/files).
 
 ### Creating a distribution
 
