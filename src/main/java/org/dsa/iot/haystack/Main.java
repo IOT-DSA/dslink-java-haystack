@@ -15,7 +15,7 @@ public class Main extends DSLinkHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
     @Override
-    public void onResponderConnected(DSLink link) {
+    public void onResponderInitialized(DSLink link) {
         LOGGER.info("Connected");
 
         Node superRoot = link.getNodeManager().getNode("/").getNode();
