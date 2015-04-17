@@ -159,34 +159,26 @@ public class Haystack {
         while (it != null && it.hasNext()) {
             HRow row = (HRow) it.next();
 
-            HVal nameVal = row.get("treeName", false);
-            if (nameVal == null) {
-                nameVal = row.get("id", false);
-                if (nameVal == null) {
-                    nameVal = row.get("dis", false);
-                    if (nameVal == null) {
-                        nameVal = row.get("navId");
-                        if (nameVal == null) {
-                            continue; // Give up
-                        }
-                    }
-                }
-            }
-
-            String name = filterBannedChars(nameVal.toString());
-            if (name.isEmpty()) {
+            String name = filterBannedChars(row.dis());
+            if (name.isEmpty() || "????".equals(name)) {
                 continue;
             }
 
-            HVal dis = row.get("dis", false);
-
             NodeBuilder b = node.createChild(name);
-            if (dis != null) {
-                b.setDisplayName(dis.toString());
-            }
-            b.build();
-
             Node child = b.build();
+
+            Iterator data = row.iterator();
+            while (data.hasNext()) {
+                Map.Entry rowData = (Map.Entry) data.next();
+
+                String col = (String) rowData.getKey();
+                String val = rowData.getValue().toString();
+
+                b = child.createChild(filterBannedChars(col));
+                Node n = b.build();
+                n.setValue(new Value(val));
+            }
+
             HVal navId = row.get("navId", false);
             if (navId != null) {
                 String n = navId.toString();
