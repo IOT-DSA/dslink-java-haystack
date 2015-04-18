@@ -14,6 +14,7 @@ import org.projecthaystack.client.HClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vertx.java.core.Handler;
+import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 
 import java.util.Iterator;
@@ -48,6 +49,10 @@ public class Haystack {
         }
     }
 
+    private boolean isConnected() {
+        return client != null;
+    }
+
     public static void init(Node superRoot) {
         NodeBuilder builder = superRoot.createChild("addServer");
         builder.setAction(getAddServerAction(superRoot)).build();
@@ -63,11 +68,15 @@ public class Haystack {
                     connectNode.setAction(getConnectAction(haystack));
                     connectNode.build();
 
+                    NodeBuilder readNode = child.createChild("read");
+                    readNode.setAction(getReadAction(haystack));
+                    readNode.build();
+
                     NodeListener listener = child.getListener();
                     listener.addOnListHandler(new Handler<Node>() {
                         @Override
                         public void handle(Node event) {
-                            if (haystack.client == null) {
+                            if (!haystack.isConnected()) {
                                 haystack.connect();
                             }
                             HGrid nav = haystack.client.call("nav", HGrid.EMPTY);
@@ -149,9 +158,84 @@ public class Haystack {
         return new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(ActionResult event) {
-                haystack.connect();
+                if (!haystack.isConnected()) {
+                    haystack.connect();
+                }
             }
         });
+    }
+
+    private static Action getReadAction(final Haystack haystack) {
+        Action a = new Action(Permission.READ, new Handler<ActionResult>() {
+            @Override
+            public void handle(ActionResult event) {
+                if (!haystack.isConnected()) {
+                    haystack.connect();
+                }
+
+                JsonObject params = event.getJsonIn().getObject("params");
+                if (params == null) {
+                    throw new RuntimeException("Missing params");
+                }
+
+                String filter = params.getString("filter");
+                Integer limit = params.getInteger("limit");
+
+                if (filter == null) {
+                    throw new RuntimeException("Missing filter parameter");
+                }
+
+                HGridBuilder builder = new HGridBuilder();
+                builder.addCol("filter");
+                {
+                    HVal[] row;
+                    if (limit != null) {
+                        row = new HVal[]{
+                                HStr.make(filter),
+                                HNum.make(limit)
+                        };
+                        builder.addCol("limit");
+                    } else {
+                        row = new HVal[]{
+                                HStr.make(filter)
+                        };
+                    }
+                    builder.addRow(row);
+                }
+                HGrid grid = haystack.client.call("read", builder.toGrid());
+
+                {
+                    JsonArray columns = new JsonArray();
+                    for (int i = 0; i < grid.numCols(); i++) {
+                        JsonObject col = new JsonObject();
+                        col.putString("name", grid.col(i).name());
+                        col.putString("type", ValueType.STRING.toJsonString());
+                        columns.addObject(col);
+                    }
+                    event.setColumns(columns);
+                }
+
+                {
+                    JsonArray results = new JsonArray();
+
+                    Iterator it = grid.iterator();
+                    while (it.hasNext()) {
+                        HRow row = (HRow) it.next();
+                        HGrid rowData = row.grid();
+                        JsonArray res = new JsonArray();
+                        for (int i = 0; i < rowData.numRows(); i++) {
+                            res.addString(rowData.row(i).toString());
+                        }
+                        results.addArray(res);
+                    }
+
+                    event.setUpdates(results);
+                }
+            }
+        }, Action.InvokeMode.ASYNC);
+        a.addParameter(new Parameter("filter", ValueType.STRING));
+        a.addParameter(new Parameter("limit", ValueType.NUMBER));
+        return a;
     }
 
     private static void iterateNavChildren(Haystack haystack, HGrid nav, Node node) {
