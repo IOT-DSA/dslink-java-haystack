@@ -45,7 +45,7 @@ public class Haystack {
                 LOGGER.info("Opened Haystack connection to {}", url);
             }
         } catch (Exception e) {
-            LOGGER.error("Failed to open Haystack connection to {} {}", url, e);
+            LOGGER.error("Failed to open Haystack connection to {}", url, e);
         }
     }
 
