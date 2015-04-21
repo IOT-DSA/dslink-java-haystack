@@ -9,7 +9,9 @@ import org.dsa.iot.dslink.node.actions.ActionResult;
 import org.dsa.iot.dslink.node.actions.Parameter;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
+import org.dsa.iot.dslink.util.Objects;
 import org.projecthaystack.*;
+import org.projecthaystack.client.CallErrException;
 import org.projecthaystack.client.HClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,16 +75,7 @@ public class Haystack {
                     readNode.build();
 
                     NodeListener listener = child.getListener();
-                    listener.addOnListHandler(new Handler<Node>() {
-                        @Override
-                        public void handle(Node event) {
-                            if (!haystack.isConnected()) {
-                                haystack.connect();
-                            }
-                            HGrid nav = haystack.client.call("nav", HGrid.EMPTY);
-                            iterateNavChildren(haystack, nav, event);
-                        }
-                    });
+                    listener.addOnListHandler(getRootListHandler(haystack));
                     haystack.connect();
                 }
             }
@@ -93,19 +86,37 @@ public class Haystack {
                                                final String navId) {
         return new Handler<Node>() {
             @Override
-            public void handle(Node event) {
-                HGridBuilder builder = new HGridBuilder();
-                builder.addCol("navId");
-                builder.addRow(new HVal[]{
-                        HUri.make(navId)
-                });
-                LOGGER.info("Navigating: {}", navId);
+            public void handle(final Node event) {
+                Objects.getDaemonThreadPool().execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        HGridBuilder builder = new HGridBuilder();
+                        builder.addCol("navId");
+                        builder.addRow(new HVal[]{
+                                HUri.make(navId)
+                        });
+                        LOGGER.info("Navigating: {}", navId);
 
-                try {
-                    HGrid nav = haystack.client.call("nav", builder.toGrid());
-                    iterateNavChildren(haystack, nav, event);
-                } catch (UnknownRecException ignored) {
+                        try {
+                            HGrid nav = haystack.client.call("nav", builder.toGrid());
+                            iterateNavChildren(haystack, nav, event);
+                        } catch (CallErrException ignored) {
+                        }
+                    }
+                });
+            }
+        };
+    }
+
+    private static Handler<Node> getRootListHandler(final Haystack haystack) {
+        return new Handler<Node>() {
+            @Override
+            public void handle(Node event) {
+                if (!haystack.isConnected()) {
+                    haystack.connect();
                 }
+                HGrid nav = haystack.client.call("nav", HGrid.EMPTY);
+                iterateNavChildren(haystack, nav, event);
             }
         };
     }
@@ -139,6 +150,7 @@ public class Haystack {
                 builder.setPassword(password.toCharArray());
                 Node node = builder.build();
                 Haystack haystack = new Haystack(node);
+                node.getListener().addOnListHandler(getRootListHandler(haystack));
 
                 builder = node.createChild("connect");
                 builder.setAction(getConnectAction(haystack));
