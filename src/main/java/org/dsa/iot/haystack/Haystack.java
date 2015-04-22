@@ -7,6 +7,7 @@ import org.dsa.iot.dslink.node.Permission;
 import org.dsa.iot.dslink.node.actions.Action;
 import org.dsa.iot.dslink.node.actions.ActionResult;
 import org.dsa.iot.dslink.node.actions.Parameter;
+import org.dsa.iot.dslink.node.actions.ResultType;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
 import org.dsa.iot.dslink.util.Objects;
@@ -236,7 +237,15 @@ public class Haystack {
                         HGrid rowData = row.grid();
                         JsonArray res = new JsonArray();
                         for (int i = 0; i < rowData.numRows(); i++) {
-                            res.addString(rowData.row(i).toString());
+                            HRow hRow = rowData.row(i);
+                            for (int x = 0; x < grid.numCols(); x++) {
+                                HVal val = hRow.get(grid.col(x), false);
+                                if (val != null) {
+                                    res.addString(val.toString());
+                                } else {
+                                    res.addString(null);
+                                }
+                            }
                         }
                         results.addArray(res);
                     }
@@ -247,6 +256,7 @@ public class Haystack {
         }, Action.InvokeMode.ASYNC);
         a.addParameter(new Parameter("filter", ValueType.STRING));
         a.addParameter(new Parameter("limit", ValueType.NUMBER));
+        a.setResultType(ResultType.TABLE);
         return a;
     }
 
