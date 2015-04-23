@@ -234,19 +234,17 @@ public class Haystack {
                     Iterator it = grid.iterator();
                     while (it.hasNext()) {
                         HRow row = (HRow) it.next();
-                        HGrid rowData = row.grid();
                         JsonArray res = new JsonArray();
-                        for (int i = 0; i < rowData.numRows(); i++) {
-                            HRow hRow = rowData.row(i);
-                            for (int x = 0; x < grid.numCols(); x++) {
-                                HVal val = hRow.get(grid.col(x), false);
-                                if (val != null) {
-                                    res.addString(val.toString());
-                                } else {
-                                    res.addString(null);
-                                }
+
+                        for (int x = 0; x < grid.numCols(); x++) {
+                            HVal val = row.get(grid.col(x), false);
+                            if (val != null) {
+                                res.addString(val.toString());
+                            } else {
+                                res.addString(null);
                             }
                         }
+
                         results.addArray(res);
                     }
 
