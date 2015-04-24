@@ -339,7 +339,7 @@ public class Haystack {
                         }
                     });
 
-                    n.getListener().addOnUnsubcriptionHandler(new Handler<Node>() {
+                    n.getListener().addOnUnsubscribeHandler(new Handler<Node>() {
                         @Override
                         public void handle(Node event) {
                             if (val != null) {
