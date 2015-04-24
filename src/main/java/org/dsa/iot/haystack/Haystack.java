@@ -20,8 +20,9 @@ import org.vertx.java.core.Handler;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /**
@@ -31,11 +32,17 @@ public class Haystack {
 
     private static final Logger LOGGER;
 
+    private final Object lock = new Object();
+    private final Map<String, Node> subs;
     private final Node node;
+
+    private ScheduledFuture<?> future;
     private HClient client;
+    private HWatch watch;
 
     private Haystack(Node node) {
         this.node = node;
+        this.subs = new HashMap<>();
     }
 
     private synchronized void connect() {
@@ -45,6 +52,54 @@ public class Haystack {
                 String username = node.getConfig("username").getString();
                 char[] password = node.getPassword();
                 client = HClient.open(url, username, String.valueOf(password));
+                watch = client.watchOpen("Haystack DSLink", null);
+                if (future != null) {
+                    future.cancel(false);
+                }
+                future = Objects.getDaemonThreadPool().scheduleWithFixedDelay(new Runnable() {
+                    @Override
+                    public void run() {
+                        synchronized (lock) {
+                            if (subs.isEmpty()) {
+                                return;
+                            }
+
+                            HGrid grid = watch.pollChanges();
+                            Iterator it = grid.iterator();
+                            while (it.hasNext()) {
+                                HRow row = (HRow) it.next();
+                                Node node = subs.get(row.id().toString());
+                                if (node != null) {
+                                    Map<String, Node> children = node.getChildren();
+                                    List<String> remove = new ArrayList<>(children.keySet());
+
+                                    Iterator rowIt = row.iterator();
+                                    while (rowIt.hasNext()) {
+                                        Map.Entry entry = (Map.Entry) rowIt.next();
+                                        String name = (String) entry.getKey();
+                                        String val = entry.getValue().toString();
+
+                                        String filtered = filterBannedChars(name);
+                                        Node child = children.get(filtered);
+                                        if (child != null) {
+                                            child.setValue(new Value(val));
+                                        } else {
+                                            NodeBuilder b = node.createChild(filtered);
+                                            b.setValue(new Value(val));
+                                            b.build();
+                                        }
+                                        remove.remove(filtered);
+                                    }
+
+                                    for (String s : remove) {
+                                        node.removeChild(s);
+                                    }
+                                }
+                            }
+
+                        }
+                    }
+                }, 5, 5, TimeUnit.SECONDS);
                 LOGGER.info("Opened Haystack connection to {}", url);
             }
         } catch (Exception e) {
@@ -105,19 +160,6 @@ public class Haystack {
                         }
                     }
                 });
-            }
-        };
-    }
-
-    private static Handler<Node> getRootListHandler(final Haystack haystack) {
-        return new Handler<Node>() {
-            @Override
-            public void handle(Node event) {
-                if (!haystack.isConnected()) {
-                    haystack.connect();
-                }
-                HGrid nav = haystack.client.call("nav", HGrid.EMPTY);
-                iterateNavChildren(haystack, nav, event);
             }
         };
     }
@@ -230,7 +272,6 @@ public class Haystack {
 
                 {
                     JsonArray results = new JsonArray();
-
                     Iterator it = grid.iterator();
                     while (it.hasNext()) {
                         HRow row = (HRow) it.next();
@@ -258,10 +299,10 @@ public class Haystack {
         return a;
     }
 
-    private static void iterateNavChildren(Haystack haystack, HGrid nav, Node node) {
+    private static void iterateNavChildren(final Haystack haystack, HGrid nav, Node node) {
         Iterator it = nav.iterator();
         while (it != null && it.hasNext()) {
-            HRow row = (HRow) it.next();
+            final HRow row = (HRow) it.next();
 
             String name = filterBannedChars(row.dis());
             if (name.isEmpty() || "????".equals(name)) {
@@ -269,18 +310,51 @@ public class Haystack {
             }
 
             NodeBuilder b = node.createChild(name);
-            Node child = b.build();
+            final Node child = b.build();
 
             Iterator data = row.iterator();
             while (data.hasNext()) {
                 Map.Entry rowData = (Map.Entry) data.next();
 
                 String col = (String) rowData.getKey();
-                String val = rowData.getValue().toString();
+                final String val = rowData.getValue().toString();
 
                 b = child.createChild(filterBannedChars(col));
                 Node n = b.build();
                 n.setValue(new Value(val));
+                if ("id".equals(col)) {
+                    n.getListener().addOnSubscribeHandler(new Handler<Node>() {
+                        @Override
+                        public void handle(Node event) {
+                            if (val != null) {
+                                try {
+                                    haystack.watch.sub(new HRef[] {
+                                            HRef.make(val)
+                                    });
+                                    haystack.subs.put(val, child);
+                                } catch (Exception e) {
+                                    LOGGER.error("Failed to subscribe", e);
+                                }
+                            }
+                        }
+                    });
+
+                    n.getListener().addOnUnsubcriptionHandler(new Handler<Node>() {
+                        @Override
+                        public void handle(Node event) {
+                            if (val != null) {
+                                try {
+                                    haystack.watch.unsub(new HRef[] {
+                                            HRef.make(val)
+                                    });
+                                } catch (Exception e) {
+                                    LOGGER.warn("Failed to unsubscribe", e);
+                                }
+                                haystack.subs.remove(val);
+                            }
+                        }
+                    });
+                }
             }
 
             HVal navId = row.get("navId", false);
@@ -301,6 +375,19 @@ public class Haystack {
             }
         }
         return name;
+    }
+
+    private static Handler<Node> getRootListHandler(final Haystack haystack) {
+        return new Handler<Node>() {
+            @Override
+            public void handle(Node event) {
+                if (!haystack.isConnected()) {
+                    haystack.connect();
+                }
+                HGrid nav = haystack.client.call("nav", HGrid.EMPTY);
+                iterateNavChildren(haystack, nav, event);
+            }
+        };
     }
 
     static {
