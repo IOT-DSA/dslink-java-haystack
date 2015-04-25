@@ -63,10 +63,13 @@ public class Haystack {
     }
 
     HGrid call(String op, HGrid grid) {
-        if (!isConnected()) {
-            connect();
-        }
+        ensureConnected();
         return client.call(op, grid);
+    }
+
+    HGrid eval(String expr) {
+        ensureConnected();
+        return client.eval(expr);
     }
 
     NavHelper getHelper() {
@@ -74,9 +77,7 @@ public class Haystack {
     }
 
     void subscribe(HRef id, Node node) {
-        if (!isConnected()) {
-            connect();
-        }
+        ensureConnected();
         try {
             watch.sub(new HRef[]{ id });
             subs.put(id.toString(), node);
@@ -86,9 +87,7 @@ public class Haystack {
     }
 
     void unsubscribe(HRef id) {
-        if (!isConnected()) {
-            connect();
-        }
+        ensureConnected();
         try {
             watch.unsub(new HRef[]{id});
         } catch (Exception e) {
@@ -97,7 +96,13 @@ public class Haystack {
         subs.remove(id.toString());
     }
 
-    boolean isConnected() {
+    void ensureConnected() {
+        if (!isConnected()) {
+            connect();
+        }
+    }
+
+    private boolean isConnected() {
         return client != null;
     }
 

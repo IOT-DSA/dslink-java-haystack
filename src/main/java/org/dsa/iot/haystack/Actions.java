@@ -65,9 +65,7 @@ public class Actions {
         return new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(ActionResult event) {
-                if (!haystack.isConnected()) {
-                    haystack.connect();
-                }
+                haystack.ensureConnected();
             }
         });
     }
@@ -107,38 +105,7 @@ public class Actions {
                 }
 
                 HGrid grid = haystack.call("read", builder.toGrid());
-                {
-                    JsonArray columns = new JsonArray();
-                    for (int i = 0; i < grid.numCols(); i++) {
-                        JsonObject col = new JsonObject();
-                        col.putString("name", grid.col(i).name());
-                        col.putString("type", ValueType.STRING.toJsonString());
-                        columns.addObject(col);
-                    }
-                    event.setColumns(columns);
-                }
-
-                {
-                    JsonArray results = new JsonArray();
-                    Iterator it = grid.iterator();
-                    while (it.hasNext()) {
-                        HRow row = (HRow) it.next();
-                        JsonArray res = new JsonArray();
-
-                        for (int x = 0; x < grid.numCols(); x++) {
-                            HVal val = row.get(grid.col(x), false);
-                            if (val != null) {
-                                res.addString(val.toString());
-                            } else {
-                                res.addString(null);
-                            }
-                        }
-
-                        results.addArray(res);
-                    }
-
-                    event.setUpdates(results);
-                }
+                buildTable(grid, event);
             }
         }, Action.InvokeMode.ASYNC);
         a.addParameter(new Parameter("filter", ValueType.STRING));
@@ -147,4 +114,61 @@ public class Actions {
         return a;
     }
 
+    static Action getEvalAction(final Haystack haystack) {
+        Action a = new Action(Permission.READ, new Handler<ActionResult>() {
+            @Override
+            public void handle(ActionResult event) {
+                JsonObject params = event.getJsonIn().getObject("params");
+                if (params == null) {
+                    throw new RuntimeException("Missing params");
+                }
+
+                String expr = params.getString("expr");
+                if (expr == null) {
+                    throw new RuntimeException("Missing expr parameter");
+                }
+
+                HGrid grid = haystack.eval(expr);
+                buildTable(grid, event);
+            }
+        }, Action.InvokeMode.ASYNC);
+        a.addParameter(new Parameter("expr", ValueType.STRING));
+        a.setResultType(ResultType.TABLE);
+        return a;
+    }
+
+    private static void buildTable(HGrid in, ActionResult out) {
+        {
+            JsonArray columns = new JsonArray();
+            for (int i = 0; i < in.numCols(); i++) {
+                JsonObject col = new JsonObject();
+                col.putString("name", in.col(i).name());
+                col.putString("type", ValueType.STRING.toJsonString());
+                columns.addObject(col);
+            }
+            out.setColumns(columns);
+        }
+
+        {
+            JsonArray results = new JsonArray();
+            Iterator it = in.iterator();
+            while (it.hasNext()) {
+                HRow row = (HRow) it.next();
+                JsonArray res = new JsonArray();
+
+                for (int x = 0; x < in.numCols(); x++) {
+                    HVal val = row.get(in.col(x), false);
+                    if (val != null) {
+                        res.addString(val.toString());
+                    } else {
+                        res.addString(null);
+                    }
+                }
+
+                results.addArray(res);
+            }
+
+            out.setUpdates(results);
+        }
+    }
 }

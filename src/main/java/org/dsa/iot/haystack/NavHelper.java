@@ -4,6 +4,7 @@ import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.NodeBuilder;
 import org.dsa.iot.dslink.node.NodeListener;
 import org.dsa.iot.dslink.node.value.Value;
+import org.dsa.iot.dslink.util.Objects;
 import org.projecthaystack.*;
 import org.projecthaystack.client.CallErrException;
 import org.slf4j.Logger;
@@ -29,24 +30,30 @@ public class NavHelper {
         return new Handler<Node>() {
             @Override
             public void handle(final Node event) {
-                HGrid grid = HGrid.EMPTY;
-                if (navId != null) {
-                    HGridBuilder builder = new HGridBuilder();
-                    builder.addCol("navId");
-                    builder.addRow(new HVal[]{
-                            HUri.make(navId)
-                    });
-                    grid = builder.toGrid();
-                    LOGGER.info("Navigating: {} ({})", navId, event.getPath());
-                } else {
-                    LOGGER.info("Navigating root");
-                }
+                Objects.getDaemonThreadPool().execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        HGrid grid = HGrid.EMPTY;
+                        if (navId != null) {
+                            HGridBuilder builder = new HGridBuilder();
+                            builder.addCol("navId");
+                            builder.addRow(new HVal[]{
+                                    HUri.make(navId)
+                            });
+                            grid = builder.toGrid();
+                            String path = event.getPath();
+                            LOGGER.info("Navigating: {} ({})", navId, path);
+                        } else {
+                            LOGGER.info("Navigating root");
+                        }
 
-                try {
-                    HGrid nav = haystack.call("nav", grid);
-                    iterateNavChildren(nav, event);
-                } catch (CallErrException ignored) {
-                }
+                        try {
+                            HGrid nav = haystack.call("nav", grid);
+                            iterateNavChildren(nav, event);
+                        } catch (CallErrException ignored) {
+                        }
+                    }
+                });
             }
         };
     }
