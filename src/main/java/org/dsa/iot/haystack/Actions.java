@@ -139,6 +139,44 @@ public class Actions {
         return a;
     }
 
+    static Action getHisReadAction(final Haystack haystack) {
+        Action a = new Action(Permission.READ, new Handler<ActionResult>() {
+            @Override
+            public void handle(ActionResult event) {
+                JsonObject params = event.getJsonIn().getObject("params");
+                if (params == null) {
+                    throw new RuntimeException("Missing params");
+                }
+
+                String id = params.getString("id");
+                String range = params.getString("range");
+
+                if (id == null) {
+                    throw new RuntimeException("Missing id parameter");
+                } else if (range == null) {
+                    throw new RuntimeException("Missing range parameter");
+                }
+
+                HGridBuilder builder = new HGridBuilder();
+                builder.addCol("id");
+                builder.addCol("range");
+                builder.addRow(new HVal[]{
+                        HRef.make(id),
+                        HStr.make(range)
+                });
+
+                HGrid grid = haystack.call("hisRead", builder.toGrid());
+                if (grid != null) {
+                    buildTable(grid, event);
+                }
+            }
+        }, Action.InvokeMode.ASYNC);
+        a.addParameter(new Parameter("id", ValueType.STRING));
+        a.addParameter(new Parameter("range", ValueType.STRING));
+        a.setResultType(ResultType.TABLE);
+        return a;
+    }
+
     private static void buildTable(HGrid in, ActionResult out) {
         {
             JsonArray columns = new JsonArray();

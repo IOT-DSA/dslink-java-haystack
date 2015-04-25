@@ -49,6 +49,10 @@ public class Utils {
         evalNode.setAction(Actions.getEvalAction(haystack));
         evalNode.build();
 
+        NodeBuilder hisReadNode = node.createChild("hisRead");
+        hisReadNode.setAction(Actions.getHisReadAction(haystack));
+        hisReadNode.build();
+
         NodeListener listener = node.getListener();
         Handler<Node> handler = haystack.getHelper().getNavHandler(null);
         listener.setOnListHandler(handler);
