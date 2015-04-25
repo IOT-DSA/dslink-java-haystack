@@ -25,7 +25,9 @@ public class Haystack {
     private final NavHelper helper;
     private final Node node;
 
-    private ScheduledFuture<?> future;
+    private ScheduledFuture<?> connectFuture;
+    private ScheduledFuture<?> pollFuture;
+
     private HClient client;
     private HWatch watch;
 
@@ -36,6 +38,10 @@ public class Haystack {
     }
 
     synchronized void connect() {
+        if (connectFuture != null) {
+            connectFuture.cancel(false);
+            connectFuture = null;
+        }
         String url = node.getConfig("url").getString();
         try {
             if (client == null) {
@@ -43,30 +49,60 @@ public class Haystack {
                 char[] password = node.getPassword();
                 client = HClient.open(url, username, String.valueOf(password));
                 watch = client.watchOpen("Haystack DSLink", null);
-                if (future != null) {
-                    future.cancel(false);
+                if (!subs.isEmpty()) {
+                    // Restore haystack subscriptions
+                    for (Map.Entry<String, Node> entry : subs.entrySet()) {
+                        HRef id = HRef.make(entry.getKey());
+                        Node node = entry.getValue();
+                        subscribe(id, node);
+                    }
                 }
-                future = Objects.getDaemonThreadPool().scheduleWithFixedDelay(new Runnable() {
+                pollFuture = Objects.getDaemonThreadPool().scheduleWithFixedDelay(new Runnable() {
                     @Override
                     public void run() {
-                        poll();
+                        try {
+                            poll();
+                        } catch (Exception e) {
+                            pollFuture.cancel(false);
+                            client = null;
+                            pollFuture = null;
+                            synchronized (Haystack.this) {
+                                watch = null;
+                            }
+                            scheduleReconnect();
+                        }
                     }
                 }, 5, 5, TimeUnit.SECONDS);
                 LOGGER.info("Opened Haystack connection to {}", url);
             }
         } catch (Exception e) {
-            LOGGER.error("Failed to open Haystack connection to {}", url, e);
+            LOGGER.error("Failed to open Haystack connection to {}", url);
+            scheduleReconnect();
         }
     }
 
+    private synchronized void scheduleReconnect() {
+        LOGGER.warn("Reconnection to haystack server scheduled");
+        connectFuture = Objects.getDaemonThreadPool().schedule(new Runnable() {
+            @Override
+            public void run() {
+                connect();
+            }
+        }, 5, TimeUnit.SECONDS);
+    }
+
     HGrid call(String op, HGrid grid) {
-        ensureConnected();
-        return client.call(op, grid);
+        if (ensureConnected()) {
+            return client.call(op, grid);
+        }
+        return null;
     }
 
     HGrid eval(String expr) {
-        ensureConnected();
-        return client.eval(expr);
+        if (ensureConnected()) {
+            return client.eval(expr);
+        }
+        return null;
     }
 
     NavHelper getHelper() {
@@ -74,29 +110,38 @@ public class Haystack {
     }
 
     void subscribe(HRef id, Node node) {
-        ensureConnected();
-        try {
-            watch.sub(new HRef[]{ id });
+        subscribe(id, node, true);
+    }
+
+    private synchronized void subscribe(HRef id, Node node, boolean add) {
+        if (add) {
             subs.put(id.toString(), node);
-        } catch (Exception e) {
-            LOGGER.error("Failed to subscribe", e);
+        }
+        if (ensureConnected()) {
+            try {
+                watch.sub(new HRef[]{id});
+            } catch (Exception e) {
+                LOGGER.error("Failed to subscribe", e);
+            }
         }
     }
 
-    void unsubscribe(HRef id) {
-        ensureConnected();
-        try {
-            watch.unsub(new HRef[]{id});
-        } catch (Exception e) {
-            LOGGER.error("Failed to unsubscribe", e);
-        }
+    synchronized void unsubscribe(HRef id) {
         subs.remove(id.toString());
+        if (ensureConnected()) {
+            try {
+                watch.unsub(new HRef[]{id});
+            } catch (Exception e) {
+                LOGGER.error("Failed to unsubscribe", e);
+            }
+        }
     }
 
-    void ensureConnected() {
+    boolean ensureConnected() {
         if (!isConnected()) {
             connect();
         }
+        return isConnected();
     }
 
     private boolean isConnected() {
@@ -109,7 +154,10 @@ public class Haystack {
                 return;
             }
 
-            HGrid grid = watch.pollChanges();
+            HGrid grid;
+            synchronized (this) {
+                grid = watch.pollChanges();
+            }
             Iterator it = grid.iterator();
             while (it.hasNext()) {
                 HRow row = (HRow) it.next();

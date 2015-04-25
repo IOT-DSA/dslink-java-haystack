@@ -49,7 +49,9 @@ public class NavHelper {
 
                         try {
                             HGrid nav = haystack.call("nav", grid);
-                            iterateNavChildren(nav, event);
+                            if (nav != null) {
+                                iterateNavChildren(nav, event);
+                            }
                         } catch (CallErrException ignored) {
                         }
                     }
@@ -82,19 +84,21 @@ public class NavHelper {
                 hGridBuilder.addRow(new HVal[]{navId});
                 HGrid grid = hGridBuilder.toGrid();
                 HGrid children = haystack.call("nav", grid);
-                Iterator childrenIt = children.iterator();
-                while (childrenIt.hasNext()) {
-                    final HRow childRow = (HRow) childrenIt.next();
-                    final String childName = getName(childRow);
-                    if (childName != null) {
-                        Node n = child.createChild(childName).build();
-                        navId = childRow.get("navId", false);
-                        if (navId != null) {
-                            id = navId.toString();
-                            handler = getNavHandler(id);
-                            n.getListener().addOnListHandler(handler);
+                if (children != null) {
+                    Iterator childrenIt = children.iterator();
+                    while (childrenIt.hasNext()) {
+                        final HRow childRow = (HRow) childrenIt.next();
+                        final String childName = getName(childRow);
+                        if (childName != null) {
+                            Node n = child.createChild(childName).build();
+                            navId = childRow.get("navId", false);
+                            if (navId != null) {
+                                id = navId.toString();
+                                handler = getNavHandler(id);
+                                n.getListener().addOnListHandler(handler);
+                            }
+                            iterateRow(n, childRow);
                         }
-                        iterateRow(n, childRow);
                     }
                 }
             }

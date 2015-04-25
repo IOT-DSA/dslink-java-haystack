@@ -105,7 +105,9 @@ public class Actions {
                 }
 
                 HGrid grid = haystack.call("read", builder.toGrid());
-                buildTable(grid, event);
+                if (grid != null) {
+                    buildTable(grid, event);
+                }
             }
         }, Action.InvokeMode.ASYNC);
         a.addParameter(new Parameter("filter", ValueType.STRING));
