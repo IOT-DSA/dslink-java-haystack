@@ -131,37 +131,11 @@ public class Haystack {
                     readNode.build();
 
                     NodeListener listener = child.getListener();
-                    listener.addOnListHandler(getRootListHandler(haystack));
+                    listener.addOnListHandler(haystack.getNavHandler(null));
                     haystack.connect();
                 }
             }
         }
-    }
-
-    private static Handler<Node> getNavHandler(final Haystack haystack,
-                                               final String navId) {
-        return new Handler<Node>() {
-            @Override
-            public void handle(final Node event) {
-                Objects.getDaemonThreadPool().execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        HGridBuilder builder = new HGridBuilder();
-                        builder.addCol("navId");
-                        builder.addRow(new HVal[]{
-                                HUri.make(navId)
-                        });
-                        LOGGER.info("Navigating: {}", navId);
-
-                        try {
-                            HGrid nav = haystack.client.call("nav", builder.toGrid());
-                            iterateNavChildren(haystack, nav, event);
-                        } catch (CallErrException ignored) {
-                        }
-                    }
-                });
-            }
-        };
     }
 
     private static Action getAddServerAction(final Node parent) {
@@ -193,7 +167,7 @@ public class Haystack {
                 builder.setPassword(password.toCharArray());
                 Node node = builder.build();
                 Haystack haystack = new Haystack(node);
-                node.getListener().addOnListHandler(getRootListHandler(haystack));
+                node.getListener().addOnListHandler(haystack.getNavHandler(null));
 
                 builder = node.createChild("connect");
                 builder.setAction(getConnectAction(haystack));
@@ -208,6 +182,140 @@ public class Haystack {
         act.addParameter(new Parameter("password", ValueType.STRING));
         return act;
     }
+
+    private Handler<Node> getNavHandler(final String navId) {
+        return new Handler<Node>() {
+            @Override
+            public void handle(final Node event) {
+                if (!isConnected()) {
+                    connect();
+                }
+
+                HGrid grid = HGrid.EMPTY;
+                if (navId != null) {
+                    HGridBuilder builder = new HGridBuilder();
+                    builder.addCol("navId");
+                    builder.addRow(new HVal[]{
+                            HUri.make(navId)
+                    });
+                    grid = builder.toGrid();
+                    LOGGER.info("Navigating: {} ({})", navId, event.getPath());
+                } else {
+                    LOGGER.info("Navigating root");
+                }
+
+                try {
+                    HGrid nav = client.call("nav", grid);
+                    iterateNavChildren(nav, event);
+                } catch (CallErrException ignored) {
+                }
+            }
+        };
+    }
+
+    private void iterateNavChildren(HGrid nav, Node node) {
+        Iterator navIt = nav.iterator();
+        while (navIt != null && navIt.hasNext()) {
+            final HRow row = (HRow) navIt.next();
+
+            String name = getName(row);
+            if (name == null) {
+                continue;
+            }
+
+            final NodeBuilder builder = node.createChild(name);
+            final Node child = builder.build();
+
+            HVal navId = row.get("navId", false);
+            if (navId != null) {
+                String id = navId.toString();
+                Handler<Node> handler = getNavHandler(id);
+                child.getListener().addOnListHandler(handler);
+
+                HGridBuilder hGridBuilder = new HGridBuilder();
+                hGridBuilder.addCol("navId");
+                hGridBuilder.addRow(new HVal[] { navId });
+                HGrid children = client.call("nav", hGridBuilder.toGrid());
+                Iterator childrenIt = children.iterator();
+                while (childrenIt.hasNext()) {
+                    final HRow childRow = (HRow) childrenIt.next();
+                    final String childName = getName(childRow);
+                    if (childName != null) {
+                        Node n = child.createChild(childName).build();
+                        navId = childRow.get("navId", false);
+                        if (navId != null) {
+                            id = navId.toString();
+                            handler = getNavHandler(id);
+                            n.getListener().addOnListHandler(handler);
+                        }
+                        iterateRow(n, childRow);
+                    }
+                }
+            }
+
+            iterateRow(child, row);
+        }
+    }
+
+    private void iterateRow(Node node, HRow row) {
+        handleRowValSubs(node, row);
+        Iterator it = row.iterator();
+        while (it.hasNext()) {
+            Map.Entry entry = (Map.Entry) it.next();
+            String name = (String) entry.getKey();
+            if ("id".equals(name)) {
+                continue;
+            }
+            String val = entry.getValue().toString();
+
+            Node child = node.createChild(name).build();
+            child.setValue(new Value(val));
+        }
+    }
+
+    private void handleRowValSubs(final Node node, HRow row) {
+        final HVal id = row.get("id", false);
+        if (id != null) {
+            Node child = node.createChild("id").build();
+            NodeListener listener = child.getListener();
+            listener.addOnSubscribeHandler(new Handler<Node>() {
+                @Override
+                public void handle(Node event) {
+                    try {
+                        watch.sub(new HRef[] {
+                                (HRef) id
+                        });
+                        subs.put(id.toString(), node);
+                    } catch (Exception e) {
+                        LOGGER.error("Failed to subscribe", e);
+                    }
+                }
+            });
+
+            listener.addOnUnsubscribeHandler(new Handler<Node>() {
+                @Override
+                public void handle(Node event) {
+                    try {
+                        watch.unsub(new HRef[]{
+                                (HRef) id
+                        });
+                    } catch (Exception e) {
+                        LOGGER.error("Failed to unsubscribe", e);
+                    }
+                    subs.remove(id.toString());
+                }
+            });
+        }
+    }
+
+    private String getName(HRow row) {
+        String name = filterBannedChars(row.dis());
+        if (name.isEmpty() || "????".equals(name)) {
+            return null;
+        }
+        return name;
+    }
+
 
     private static Action getConnectAction(final Haystack haystack) {
         return new Action(Permission.READ, new Handler<ActionResult>() {
@@ -299,75 +407,6 @@ public class Haystack {
         return a;
     }
 
-    private static void iterateNavChildren(final Haystack haystack, HGrid nav, Node node) {
-        Iterator it = nav.iterator();
-        while (it != null && it.hasNext()) {
-            final HRow row = (HRow) it.next();
-
-            String name = filterBannedChars(row.dis());
-            if (name.isEmpty() || "????".equals(name)) {
-                continue;
-            }
-
-            NodeBuilder b = node.createChild(name);
-            final Node child = b.build();
-
-            Iterator data = row.iterator();
-            while (data.hasNext()) {
-                Map.Entry rowData = (Map.Entry) data.next();
-
-                String col = (String) rowData.getKey();
-                final String val = rowData.getValue().toString();
-
-                b = child.createChild(filterBannedChars(col));
-                Node n = b.build();
-                n.setValue(new Value(val));
-                if ("id".equals(col)) {
-                    n.getListener().addOnSubscribeHandler(new Handler<Node>() {
-                        @Override
-                        public void handle(Node event) {
-                            if (val != null) {
-                                try {
-                                    haystack.watch.sub(new HRef[] {
-                                            HRef.make(val)
-                                    });
-                                    haystack.subs.put(val, child);
-                                } catch (Exception e) {
-                                    LOGGER.error("Failed to subscribe", e);
-                                }
-                            }
-                        }
-                    });
-
-                    n.getListener().addOnUnsubscribeHandler(new Handler<Node>() {
-                        @Override
-                        public void handle(Node event) {
-                            if (val != null) {
-                                try {
-                                    haystack.watch.unsub(new HRef[] {
-                                            HRef.make(val)
-                                    });
-                                } catch (Exception e) {
-                                    LOGGER.warn("Failed to unsubscribe", e);
-                                }
-                                haystack.subs.remove(val);
-                            }
-                        }
-                    });
-                }
-            }
-
-            HVal navId = row.get("navId", false);
-            if (navId != null) {
-                String n = navId.toString();
-                if (!n.isEmpty()) {
-                    Handler<Node> h = getNavHandler(haystack, n);
-                    child.getListener().addOnListHandler(h);
-                }
-            }
-        }
-    }
-
     private static String filterBannedChars(String name) {
         for (String banned : Node.getBannedCharacters()) {
             if (name.contains(banned)) {
@@ -375,19 +414,6 @@ public class Haystack {
             }
         }
         return name;
-    }
-
-    private static Handler<Node> getRootListHandler(final Haystack haystack) {
-        return new Handler<Node>() {
-            @Override
-            public void handle(Node event) {
-                if (!haystack.isConnected()) {
-                    haystack.connect();
-                }
-                HGrid nav = haystack.client.call("nav", HGrid.EMPTY);
-                iterateNavChildren(haystack, nav, event);
-            }
-        };
     }
 
     static {
