@@ -4,10 +4,7 @@ import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.NodeBuilder;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.util.Objects;
-import org.projecthaystack.HGrid;
-import org.projecthaystack.HRef;
-import org.projecthaystack.HRow;
-import org.projecthaystack.HWatch;
+import org.projecthaystack.*;
 import org.projecthaystack.client.HClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,15 +122,16 @@ public class Haystack {
                     while (rowIt.hasNext()) {
                         Map.Entry entry = (Map.Entry) rowIt.next();
                         String name = (String) entry.getKey();
-                        String val = entry.getValue().toString();
+                        HVal val = (HVal) entry.getValue();
+                        Value value = Utils.hvalToVal(val);
 
                         String filtered = Utils.filterBannedChars(name);
                         Node child = children.get(filtered);
                         if (child != null) {
-                            child.setValue(new Value(val));
+                            child.setValue(value);
                         } else {
                             NodeBuilder b = node.createChild(filtered);
-                            b.setValue(new Value(val));
+                            b.setValue(value);
                             b.build();
                         }
                         remove.remove(filtered);

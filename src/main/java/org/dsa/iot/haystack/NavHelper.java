@@ -112,10 +112,11 @@ public class NavHelper {
             if ("id".equals(name)) {
                 continue;
             }
-            String val = entry.getValue().toString();
+            HVal val = (HVal) entry.getValue();
+            Value value = Utils.hvalToVal(val);
 
             Node child = node.createChild(name).build();
-            child.setValue(new Value(val));
+            child.setValue(value);
         }
     }
 
@@ -123,7 +124,7 @@ public class NavHelper {
         final HVal id = row.get("id", false);
         if (id != null) {
             Node child = node.createChild("id").build();
-            child.setValue(new Value(id.toString()));
+            child.setValue(Utils.hvalToVal(id));
             NodeListener listener = child.getListener();
             listener.addOnSubscribeHandler(new Handler<Node>() {
                 @Override
