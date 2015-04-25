@@ -77,7 +77,7 @@ public class NavHelper {
             if (navId != null) {
                 String id = navId.toString();
                 Handler<Node> handler = getNavHandler(id);
-                child.getListener().addOnListHandler(handler);
+                child.getListener().setOnListHandler(handler);
 
                 HGridBuilder hGridBuilder = new HGridBuilder();
                 hGridBuilder.addCol("navId");
@@ -95,7 +95,7 @@ public class NavHelper {
                             if (navId != null) {
                                 id = navId.toString();
                                 handler = getNavHandler(id);
-                                n.getListener().addOnListHandler(handler);
+                                n.getListener().setOnListHandler(handler);
                             }
                             iterateRow(n, childRow);
                         }
@@ -130,14 +130,14 @@ public class NavHelper {
             Node child = node.createChild("id").build();
             child.setValue(Utils.hvalToVal(id));
             NodeListener listener = child.getListener();
-            listener.addOnSubscribeHandler(new Handler<Node>() {
+            listener.setOnSubscribeHandler(new Handler<Node>() {
                 @Override
                 public void handle(Node event) {
                     haystack.subscribe((HRef) id, node);
                 }
             });
 
-            listener.addOnUnsubscribeHandler(new Handler<Node>() {
+            listener.setOnUnsubscribeHandler(new Handler<Node>() {
                 @Override
                 public void handle(Node event) {
                     haystack.unsubscribe((HRef) id);

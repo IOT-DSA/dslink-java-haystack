@@ -51,7 +51,7 @@ public class Utils {
 
         NodeListener listener = node.getListener();
         Handler<Node> handler = haystack.getHelper().getNavHandler(null);
-        listener.addOnListHandler(handler);
+        listener.setOnListHandler(handler);
 
         haystack.connect();
     }
