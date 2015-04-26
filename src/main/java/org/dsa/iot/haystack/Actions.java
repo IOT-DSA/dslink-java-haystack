@@ -26,24 +26,16 @@ public class Actions {
         Action act = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(ActionResult event) {
-                JsonObject params = event.getJsonIn().getObject("params");
-                if (params == null) {
-                    throw new IllegalArgumentException("params");
-                }
+                ValueType vt = ValueType.STRING;
+                Value vName = event.getParameter("name", vt);
+                Value vUrl = event.getParameter("url", vt);
+                Value vUser = event.getParameter("username", vt);
+                Value vPass = event.getParameter("password", vt);
 
-                String name = params.getString("name");
-                String url = params.getString("url");
-                String username = params.getString("username");
-                String password = params.getString("password");
-                if (name == null) {
-                    throw new IllegalArgumentException("name");
-                } else if (url == null) {
-                    throw new IllegalArgumentException("url");
-                } else if (username == null) {
-                    throw new IllegalArgumentException("username");
-                } else if (password == null) {
-                    throw new IllegalArgumentException("password");
-                }
+                String name = vName.getString();
+                String url = vUrl.getString();
+                String username = vUser.getString();
+                String password = vPass.getString();
 
                 NodeBuilder builder = parent.createChild(name);
                 builder.setConfig("url", new Value(url));
@@ -75,23 +67,16 @@ public class Actions {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(ActionResult event) {
-                JsonObject params = event.getJsonIn().getObject("params");
-                if (params == null) {
-                    throw new RuntimeException("Missing params");
-                }
+                Value vFilter = event.getParameter("filter", ValueType.STRING);
+                Value vLimit = event.getParameter("limit");
 
-                String filter = params.getString("filter");
-                Integer limit = params.getInteger("limit");
-
-                if (filter == null) {
-                    throw new RuntimeException("Missing filter parameter");
-                }
-
+                String filter = vFilter.getString();
                 HGridBuilder builder = new HGridBuilder();
                 builder.addCol("filter");
                 {
                     HVal[] row;
-                    if (limit != null) {
+                    if (vLimit != null) {
+                        int limit = vLimit.getNumber().intValue();
                         row = new HVal[]{
                                 HStr.make(filter),
                                 HNum.make(limit)
@@ -121,15 +106,8 @@ public class Actions {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(ActionResult event) {
-                JsonObject params = event.getJsonIn().getObject("params");
-                if (params == null) {
-                    throw new RuntimeException("Missing params");
-                }
-
-                String expr = params.getString("expr");
-                if (expr == null) {
-                    throw new RuntimeException("Missing expr parameter");
-                }
+                Value vExpr = event.getParameter("expr", ValueType.STRING);
+                String expr = vExpr.getString();
 
                 HGrid grid = haystack.eval(expr);
                 buildTable(grid, event);
@@ -144,19 +122,10 @@ public class Actions {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(ActionResult event) {
-                JsonObject params = event.getJsonIn().getObject("params");
-                if (params == null) {
-                    throw new RuntimeException("Missing params");
-                }
-
-                String id = params.getString("id");
-                String range = params.getString("range");
-
-                if (id == null) {
-                    throw new RuntimeException("Missing id parameter");
-                } else if (range == null) {
-                    throw new RuntimeException("Missing range parameter");
-                }
+                Value vId = event.getParameter("id", ValueType.STRING);
+                Value vRange = event.getParameter("range", ValueType.STRING);
+                String id = vId.getString();
+                String range = vRange.getString();
 
                 HGridBuilder builder = new HGridBuilder();
                 builder.addCol("id");
@@ -179,12 +148,12 @@ public class Actions {
     }
 
     private static void buildTable(HGrid in, ActionResult out) {
-        JsonArray columns = new JsonArray();
         {
+            JsonArray columns = new JsonArray();
             for (int i = 0; i < in.numCols(); i++) {
                 JsonObject col = new JsonObject();
                 col.putString("name", in.col(i).name());
-                col.putString("type", ValueType.STRING.toJsonString());
+                col.putString("type", ValueType.DYNAMIC.toJsonString());
                 columns.addObject(col);
             }
             out.setColumns(columns);
@@ -201,9 +170,7 @@ public class Actions {
                     HVal val = row.get(in.col(i), false);
                     if (val != null) {
                         Value value = Utils.hvalToVal(val);
-                        String type = value.getType().toJsonString();
                         ValueUtils.toJson(res, value);
-                        ((JsonObject) columns.get(i)).putString("type", type);
                     } else {
                         res.add(null);
                     }

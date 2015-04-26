@@ -15,7 +15,7 @@ repositories {
 }
  
 dependencies {
-    compile 'org.iot-dsa:dslink:0.1.3-SNAPSHOT'
+    compile 'org.iot-dsa:dslink:0.3.0-SNAPSHOT'
     compile fileTree('external')
 }
 
