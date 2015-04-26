@@ -34,12 +34,22 @@ public class Utils {
                 s.append('Z');
             } else {
                 int offset = time.tzOffset;
-                if (offset < 0) { s.append('-'); offset = -offset; }
-                else { s.append('+'); }
+                if (offset < 0) {
+                    s.append('-');
+                    offset = -offset;
+                } else {
+                    s.append('+');
+                }
                 int zh = offset / 3600;
                 int zm = (offset % 3600) / 60;
-                if (zh < 10) s.append('0'); s.append(zh).append(':');
-                if (zm < 10) s.append('0'); s.append(zm);
+                if (zh < 10) {
+                    s.append('0');
+                }
+                s.append(zh).append(':');
+                if (zm < 10) {
+                    s.append('0');
+                }
+                s.append(zm);
             }
             return new Value(s.toString());
         }
