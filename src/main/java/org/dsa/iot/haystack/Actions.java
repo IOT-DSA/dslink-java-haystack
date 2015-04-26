@@ -9,6 +9,7 @@ import org.dsa.iot.dslink.node.actions.Parameter;
 import org.dsa.iot.dslink.node.actions.ResultType;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
+import org.dsa.iot.dslink.node.value.ValueUtils;
 import org.projecthaystack.*;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.json.JsonArray;
@@ -178,8 +179,8 @@ public class Actions {
     }
 
     private static void buildTable(HGrid in, ActionResult out) {
+        JsonArray columns = new JsonArray();
         {
-            JsonArray columns = new JsonArray();
             for (int i = 0; i < in.numCols(); i++) {
                 JsonObject col = new JsonObject();
                 col.putString("name", in.col(i).name());
@@ -196,12 +197,15 @@ public class Actions {
                 HRow row = (HRow) it.next();
                 JsonArray res = new JsonArray();
 
-                for (int x = 0; x < in.numCols(); x++) {
-                    HVal val = row.get(in.col(x), false);
+                for (int i = 0; i < in.numCols(); i++) {
+                    HVal val = row.get(in.col(i), false);
                     if (val != null) {
-                        res.addString(val.toString());
+                        Value value = Utils.hvalToVal(val);
+                        String type = value.getType().toJsonString();
+                        ValueUtils.toJson(res, value);
+                        ((JsonObject) columns.get(i)).putString("type", type);
                     } else {
-                        res.addString(null);
+                        res.add(null);
                     }
                 }
 
