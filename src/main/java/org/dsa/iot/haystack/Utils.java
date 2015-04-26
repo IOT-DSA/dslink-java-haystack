@@ -45,7 +45,6 @@ public class Utils {
                 if (zh < 10) {
                     s.append('0');
                 }
-                s.append(zh).append(':');
                 if (zm < 10) {
                     s.append('0');
                 }
