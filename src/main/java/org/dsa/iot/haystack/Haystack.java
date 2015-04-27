@@ -4,6 +4,7 @@ import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.NodeBuilder;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.util.Objects;
+import org.dsa.iot.dslink.util.StringUtils;
 import org.projecthaystack.*;
 import org.projecthaystack.client.HClient;
 import org.slf4j.Logger;
@@ -173,7 +174,7 @@ public class Haystack {
                         HVal val = (HVal) entry.getValue();
                         Value value = Utils.hvalToVal(val);
 
-                        String filtered = Utils.filterBannedChars(name);
+                        String filtered = StringUtils.filterBannedChars(name);
                         Node child = children.get(filtered);
                         if (child != null) {
                             child.setValue(value);

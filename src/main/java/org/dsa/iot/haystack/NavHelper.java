@@ -5,6 +5,7 @@ import org.dsa.iot.dslink.node.NodeBuilder;
 import org.dsa.iot.dslink.node.NodeListener;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.util.Objects;
+import org.dsa.iot.dslink.util.StringUtils;
 import org.projecthaystack.*;
 import org.projecthaystack.client.CallErrException;
 import org.slf4j.Logger;
@@ -147,7 +148,7 @@ public class NavHelper {
     }
 
     private String getName(HRow row) {
-        String name = Utils.filterBannedChars(row.dis());
+        String name = StringUtils.filterBannedChars(row.dis());
         if (name.isEmpty() || "????".equals(name)) {
             return null;
         }

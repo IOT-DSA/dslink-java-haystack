@@ -10,8 +10,6 @@ import org.projecthaystack.HNum;
 import org.projecthaystack.HVal;
 import org.vertx.java.core.Handler;
 
-import java.util.regex.Pattern;
-
 /**
  * @author Samuel Grenier
  */
@@ -54,15 +52,6 @@ public class Utils {
             return new Value(s.toString());
         }
         return new Value(val.toString());
-    }
-
-    static String filterBannedChars(String name) {
-        for (String banned : Node.getBannedCharacters()) {
-            if (name.contains(banned)) {
-                name = name.replaceAll(Pattern.quote(banned), "");
-            }
-        }
-        return name;
     }
 
     static void initCommon(Haystack haystack, Node node) {
