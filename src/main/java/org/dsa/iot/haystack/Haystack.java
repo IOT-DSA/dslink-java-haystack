@@ -145,7 +145,7 @@ public class Haystack {
         return isConnected();
     }
 
-    void stop() {
+    synchronized void stop() {
         if (connectFuture != null) {
             try {
                 connectFuture.cancel(false);
