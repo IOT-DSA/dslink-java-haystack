@@ -145,6 +145,23 @@ public class Haystack {
         return isConnected();
     }
 
+    void stop() {
+        if (connectFuture != null) {
+            try {
+                connectFuture.cancel(false);
+            } catch (Exception ignored) {
+            }
+            connectFuture = null;
+        }
+
+        if (pollFuture != null) {
+            try {
+                pollFuture.cancel(true);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
     private boolean isConnected() {
         return client != null;
     }

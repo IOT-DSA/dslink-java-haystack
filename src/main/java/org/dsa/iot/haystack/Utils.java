@@ -55,6 +55,10 @@ public class Utils {
     }
 
     static void initCommon(Haystack haystack, Node node) {
+        NodeBuilder remServer = node.createChild("removeServer");
+        remServer.setAction(Actions.getRemoveServerAction(node, haystack));
+        remServer.build();
+
         NodeBuilder connectNode = node.createChild("connect");
         connectNode.setAction(Actions.getConnectAction(haystack));
         connectNode.build();

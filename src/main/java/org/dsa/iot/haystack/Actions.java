@@ -23,7 +23,7 @@ import java.util.Iterator;
 public class Actions {
 
     static Action getAddServerAction(final Node parent) {
-        Action act = new Action(Permission.READ, new Handler<ActionResult>() {
+        Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(ActionResult event) {
                 ValueType vt = ValueType.STRING;
@@ -47,11 +47,22 @@ public class Actions {
                 Utils.initCommon(haystack, node);
             }
         });
-        act.addParameter(new Parameter("name", ValueType.STRING));
-        act.addParameter(new Parameter("url", ValueType.STRING));
-        act.addParameter(new Parameter("username", ValueType.STRING));
-        act.addParameter(new Parameter("password", ValueType.STRING));
-        return act;
+        a.addParameter(new Parameter("name", ValueType.STRING));
+        a.addParameter(new Parameter("url", ValueType.STRING));
+        a.addParameter(new Parameter("username", ValueType.STRING));
+        a.addParameter(new Parameter("password", ValueType.STRING));
+        return a;
+    }
+
+    static Action getRemoveServerAction(final Node node,
+                                        final Haystack haystack) {
+        return new Action(Permission.READ, new Handler<ActionResult>() {
+            @Override
+            public void handle(ActionResult event) {
+                node.getParent().removeChild(node);
+                haystack.stop();
+            }
+        });
     }
 
     static Action getConnectAction(final Haystack haystack) {
