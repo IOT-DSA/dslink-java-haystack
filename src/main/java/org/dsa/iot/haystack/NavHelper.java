@@ -58,7 +58,8 @@ public class NavHelper {
                                 LOGGER.debug("Received nav: {}", writer.toString());
                                 iterateNavChildren(nav, event);
                             }
-                        } catch (CallErrException ignored) {
+                        } catch (Exception e) {
+                            LOGGER.info("Error navigating children", e);
                         }
                     }
                 });
@@ -78,6 +79,7 @@ public class NavHelper {
 
             final NodeBuilder builder = node.createChild(name);
             final Node child = builder.build();
+            child.setSerializable(false);
 
             HVal navId = row.get("navId", false);
             if (navId != null) {
@@ -90,28 +92,33 @@ public class NavHelper {
                 hGridBuilder.addCol("navId");
                 hGridBuilder.addRow(new HVal[]{navId});
                 HGrid grid = hGridBuilder.toGrid();
-                HGrid children = haystack.call("nav", grid);
+                try {
+                    HGrid children = haystack.call("nav", grid);
 
-                StringWriter writer = new StringWriter();
-                nav.dump(new PrintWriter(writer));
-                LOGGER.debug("Received nav: {}", writer.toString());
+                    StringWriter writer = new StringWriter();
+                    nav.dump(new PrintWriter(writer));
+                    LOGGER.debug("Received nav: {}", writer.toString());
 
-                if (children != null) {
-                    Iterator childrenIt = children.iterator();
-                    while (childrenIt.hasNext()) {
-                        final HRow childRow = (HRow) childrenIt.next();
-                        final String childName = getName(childRow);
-                        if (childName != null) {
-                            Node n = child.createChild(childName).build();
-                            navId = childRow.get("navId", false);
-                            if (navId != null) {
-                                id = navId.toString();
-                                handler = getNavHandler(id);
-                                n.getListener().setOnListHandler(handler);
+                    if (children != null) {
+                        Iterator childrenIt = children.iterator();
+                        while (childrenIt.hasNext()) {
+                            final HRow childRow = (HRow) childrenIt.next();
+                            final String childName = getName(childRow);
+                            if (childName != null) {
+                                Node n = child.createChild(childName).build();
+                                n.setSerializable(false);
+                                navId = childRow.get("navId", false);
+                                if (navId != null) {
+                                    id = navId.toString();
+                                    handler = getNavHandler(id);
+                                    n.getListener().setOnListHandler(handler);
+                                }
+                                iterateRow(n, childRow);
                             }
-                            iterateRow(n, childRow);
                         }
                     }
+                } catch (CallErrException e) {
+                    LOGGER.info("Error calling nav on ID: {}", id, e);
                 }
             }
 

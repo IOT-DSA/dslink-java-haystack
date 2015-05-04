@@ -181,7 +181,8 @@ public class Haystack {
                         } else {
                             NodeBuilder b = node.createChild(filtered);
                             b.setValue(value);
-                            b.build();
+                            Node n = b.build();
+                            n.setSerializable(false);
                         }
                         remove.remove(filtered);
                     }
