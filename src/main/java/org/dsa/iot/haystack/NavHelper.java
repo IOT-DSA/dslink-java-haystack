@@ -12,6 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vertx.java.core.Handler;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -51,6 +53,9 @@ public class NavHelper {
                         try {
                             HGrid nav = haystack.call("nav", grid);
                             if (nav != null) {
+                                StringWriter writer = new StringWriter();
+                                nav.dump(new PrintWriter(writer));
+                                LOGGER.debug("Received nav: {}", writer.toString());
                                 iterateNavChildren(nav, event);
                             }
                         } catch (CallErrException ignored) {
@@ -77,6 +82,7 @@ public class NavHelper {
             HVal navId = row.get("navId", false);
             if (navId != null) {
                 String id = navId.toString();
+                LOGGER.debug("Received navId of {}", id);
                 Handler<Node> handler = getNavHandler(id);
                 child.getListener().setOnListHandler(handler);
 
@@ -85,6 +91,11 @@ public class NavHelper {
                 hGridBuilder.addRow(new HVal[]{navId});
                 HGrid grid = hGridBuilder.toGrid();
                 HGrid children = haystack.call("nav", grid);
+
+                StringWriter writer = new StringWriter();
+                nav.dump(new PrintWriter(writer));
+                LOGGER.debug("Received nav: {}", writer.toString());
+
                 if (children != null) {
                     Iterator childrenIt = children.iterator();
                     while (childrenIt.hasNext()) {
