@@ -21,6 +21,9 @@
       "value": "nodes.json",
       "required": true
     },
+    "broker": {
+      "type": "url"
+    },
     "key": {
       "type": "path",
       "value": ".key",
