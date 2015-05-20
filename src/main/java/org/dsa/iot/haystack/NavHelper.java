@@ -139,6 +139,7 @@ public class NavHelper {
             Value value = Utils.hvalToVal(val);
 
             Node child = node.createChild(name).build();
+            child.setValueType(value.getType());
             child.setValue(value);
         }
     }
@@ -147,7 +148,9 @@ public class NavHelper {
         final HVal id = row.get("id", false);
         if (id != null) {
             Node child = node.createChild("id").build();
-            child.setValue(Utils.hvalToVal(id));
+            Value val = Utils.hvalToVal(id);
+            child.setValueType(val.getType());
+            child.setValue(val);
             NodeListener listener = child.getListener();
             listener.setOnSubscribeHandler(new Handler<Node>() {
                 @Override

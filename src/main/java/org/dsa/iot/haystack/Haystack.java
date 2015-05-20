@@ -194,9 +194,11 @@ public class Haystack {
                         String filtered = StringUtils.filterBannedChars(name);
                         Node child = children.get(filtered);
                         if (child != null) {
+                            child.setValueType(value.getType());
                             child.setValue(value);
                         } else {
                             NodeBuilder b = node.createChild(filtered);
+                            b.setValueType(value.getType());
                             b.setValue(value);
                             Node n = b.build();
                             n.setSerializable(false);
