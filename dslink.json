@@ -16,8 +16,23 @@
     "url": "https://github.com/IOT-DSA/dslink-java-haystack/issues"
   },
   "configs": {
+    "nodes": {
+      "type": "path",
+      "value": "nodes.json",
+      "required": true
+    },
     "broker": {
       "type": "url"
+    },
+    "key": {
+      "type": "path",
+      "value": ".key",
+      "required": true
+    },
+    "log": {
+      "type": "enum",
+      "value": "info",
+      "required": true
     }
   }
 }
