@@ -70,7 +70,6 @@ public class Haystack {
                             synchronized (Haystack.this) {
                                 watch = null;
                             }
-                            scheduleReconnect();
                         }
                     }
                 }, 5, 5, TimeUnit.SECONDS);
@@ -78,18 +77,7 @@ public class Haystack {
             }
         } catch (Exception e) {
             LOGGER.error("Failed to open Haystack connection to {}", url);
-            scheduleReconnect();
         }
-    }
-
-    private synchronized void scheduleReconnect() {
-        LOGGER.warn("Reconnection to haystack server scheduled");
-        connectFuture = Objects.getDaemonThreadPool().schedule(new Runnable() {
-            @Override
-            public void run() {
-                connect();
-            }
-        }, 5, TimeUnit.SECONDS);
     }
 
     HGrid call(String op, HGrid grid) {
@@ -171,6 +159,7 @@ public class Haystack {
             if (subs.isEmpty()) {
                 return;
             }
+            ensureConnected();
 
             HGrid grid;
             synchronized (this) {
