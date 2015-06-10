@@ -6,6 +6,7 @@ import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.util.Objects;
 import org.dsa.iot.dslink.util.StringUtils;
 import org.projecthaystack.*;
+import org.projecthaystack.client.CallNetworkException;
 import org.projecthaystack.client.HClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,16 +81,31 @@ public class Haystack {
         }
     }
 
-    HGrid call(String op, HGrid grid) {
+    private void reconnect() {
+        stop();
+        connect();
+    }
+
+    synchronized HGrid call(String op, HGrid grid) {
         if (ensureConnected()) {
-            return client.call(op, grid);
+            try {
+                return client.call(op, grid);
+            } catch (CallNetworkException e) {
+                reconnect();
+                return client.call(op, grid);
+            }
         }
         return null;
     }
 
-    HGrid eval(String expr) {
+    synchronized HGrid eval(String expr) {
         if (ensureConnected()) {
-            return client.eval(expr);
+            try {
+                return client.eval(expr);
+            } catch (CallNetworkException e) {
+                reconnect();
+                return client.eval(expr);
+            }
         }
         return null;
     }
@@ -110,7 +126,12 @@ public class Haystack {
             try {
                 watch.sub(new HRef[]{id});
             } catch (Exception e) {
-                LOGGER.error("Failed to subscribe", e);
+                if (e instanceof CallNetworkException) {
+                    reconnect();
+                    subscribe(id, node, add);
+                } else {
+                    LOGGER.error("Failed to subscribe", e);
+                }
             }
         }
     }
@@ -121,7 +142,12 @@ public class Haystack {
             try {
                 watch.unsub(new HRef[]{id});
             } catch (Exception e) {
-                LOGGER.error("Failed to unsubscribe", e);
+                if (e instanceof CallNetworkException) {
+                    reconnect();
+                    unsubscribe(id);
+                } else {
+                    LOGGER.error("Failed to unsubscribe", e);
+                }
             }
         }
     }
@@ -148,6 +174,9 @@ public class Haystack {
             } catch (Exception ignored) {
             }
         }
+
+        client = null;
+        watch = null;
     }
 
     private boolean isConnected() {
@@ -163,7 +192,12 @@ public class Haystack {
 
             HGrid grid;
             synchronized (this) {
-                grid = watch.pollChanges();
+                try {
+                    grid = watch.pollChanges();
+                } catch (CallNetworkException e) {
+                    reconnect();
+                    grid = watch.pollChanges();
+                }
             }
             Iterator it = grid.iterator();
             while (it.hasNext()) {
