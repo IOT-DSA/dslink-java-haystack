@@ -42,7 +42,7 @@ public class Haystack {
     }
 
 
-    synchronized void connect() {
+    void connect() {
         if (connectFuture != null) {
             connectFuture.cancel(false);
             connectFuture = null;
@@ -186,7 +186,7 @@ public class Haystack {
         return isConnected();
     }
 
-    synchronized void stop() {
+    void stop() {
         if (connectFuture != null) {
             try {
                 connectFuture.cancel(false);
@@ -218,14 +218,13 @@ public class Haystack {
             ensureConnected();
 
             HGrid grid;
-            synchronized (this) {
-                try {
-                    grid = watch.pollChanges();
-                } catch (CallNetworkException e) {
-                    reconnect();
-                    grid = watch.pollChanges();
-                }
+            try {
+                grid = watch.pollChanges();
+            } catch (CallNetworkException e) {
+                reconnect();
+                grid = watch.pollChanges();
             }
+
             Iterator it = grid.iterator();
             while (it.hasNext()) {
                 HRow row = (HRow) it.next();
