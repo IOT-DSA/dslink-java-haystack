@@ -22,6 +22,7 @@ import java.util.Map;
  */
 public class NavHelper {
 
+    private static final int REFRESH_TIME = 10000;
     private static final Logger LOGGER;
     private final Haystack haystack;
 
@@ -31,8 +32,17 @@ public class NavHelper {
 
     Handler<Node> getNavHandler(final String navId) {
         return new Handler<Node>() {
+
+            private long lastUpdate;
+
             @Override
             public void handle(final Node event) {
+                long curr = System.currentTimeMillis();
+                if (curr - lastUpdate < REFRESH_TIME) {
+                    return;
+                }
+                lastUpdate = curr;
+
                 Objects.getDaemonThreadPool().execute(new Runnable() {
                     @Override
                     public void run() {
@@ -53,9 +63,11 @@ public class NavHelper {
                         try {
                             HGrid nav = haystack.call("nav", grid);
                             if (nav != null) {
-                                StringWriter writer = new StringWriter();
-                                nav.dump(new PrintWriter(writer));
-                                LOGGER.debug("Received nav: {}", writer.toString());
+                                if (LOGGER.isDebugEnabled()) {
+                                    StringWriter writer = new StringWriter();
+                                    nav.dump(new PrintWriter(writer));
+                                    LOGGER.debug("Received nav: {}", writer.toString());
+                                }
                                 iterateNavChildren(nav, event);
                             }
                         } catch (Exception e) {
