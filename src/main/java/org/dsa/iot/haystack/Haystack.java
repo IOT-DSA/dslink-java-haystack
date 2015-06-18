@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -29,8 +30,9 @@ public class Haystack {
 
     private ScheduledFuture<?> connectFuture;
     private ScheduledFuture<?> pollFuture;
-
     private HClient client;
+
+    private boolean watchEnabled;
     private HWatch watch;
 
     Haystack(Node node) {
@@ -39,41 +41,60 @@ public class Haystack {
         this.helper = new NavHelper(this);
     }
 
+
     synchronized void connect() {
         if (connectFuture != null) {
             connectFuture.cancel(false);
             connectFuture = null;
         }
         String url = node.getConfig("url").getString();
+        ScheduledThreadPoolExecutor stpe = Objects.getDaemonThreadPool();
         try {
             if (client == null) {
                 String username = node.getConfig("username").getString();
                 char[] password = node.getPassword();
                 client = HClient.open(url, username, String.valueOf(password));
-                watch = client.watchOpen("Haystack DSLink", null);
-                if (!subs.isEmpty()) {
-                    // Restore haystack subscriptions
-                    for (Map.Entry<String, Node> entry : subs.entrySet()) {
-                        HRef id = HRef.make(entry.getKey());
-                        Node node = entry.getValue();
-                        subscribe(id, node);
+
+                {
+                    HGrid grid = client.ops();
+                    Set<String> ops = new HashSet<>();
+                    for (int i = 0; i < grid.numRows(); ++i) {
+                        ops.add(grid.row(i).get("name").toString());
                     }
+
+                    watchEnabled = ops.contains("watchSub");
                 }
-                pollFuture = Objects.getDaemonThreadPool().scheduleWithFixedDelay(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            poll();
-                        } catch (Exception e) {
-                            pollFuture.cancel(false);
-                            client = null;
-                            pollFuture = null;
-                            synchronized (Haystack.this) {
-                                watch = null;
-                            }
+
+                if (watchEnabled) {
+                    watch = client.watchOpen("Haystack DSLink", null);
+                    if (!subs.isEmpty()) {
+                        // Restore haystack subscriptions
+                        for (Map.Entry<String, Node> entry : subs.entrySet()) {
+                            HRef id = HRef.make(entry.getKey());
+                            Node node = entry.getValue();
+                            subscribe(id, node);
                         }
                     }
-                }, 5, 5, TimeUnit.SECONDS);
+
+
+                    pollFuture = stpe.scheduleWithFixedDelay(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                poll();
+                            } catch (Exception e) {
+                                pollFuture.cancel(false);
+                                client = null;
+                                pollFuture = null;
+                                synchronized (Haystack.this) {
+                                    watch = null;
+                                }
+                            }
+                        }
+                    }, 5, 5, TimeUnit.SECONDS);
+                } else {
+                    LOGGER.warn("watchSub is disabled for this server");
+                }
                 LOGGER.info("Opened Haystack connection to {}", url);
             }
         } catch (Exception e) {
@@ -86,7 +107,7 @@ public class Haystack {
         connect();
     }
 
-    synchronized HGrid call(String op, HGrid grid) {
+    HGrid call(String op, HGrid grid) {
         if (ensureConnected()) {
             try {
                 return client.call(op, grid);
@@ -98,7 +119,7 @@ public class Haystack {
         return null;
     }
 
-    synchronized HGrid eval(String expr) {
+    HGrid eval(String expr) {
         if (ensureConnected()) {
             try {
                 return client.eval(expr);
@@ -118,7 +139,10 @@ public class Haystack {
         subscribe(id, node, true);
     }
 
-    private synchronized void subscribe(HRef id, Node node, boolean add) {
+    private void subscribe(HRef id, Node node, boolean add) {
+        if (!watchEnabled) {
+            return;
+        }
         if (add) {
             subs.put(id.toString(), node);
         }
@@ -136,7 +160,10 @@ public class Haystack {
         }
     }
 
-    synchronized void unsubscribe(HRef id) {
+    void unsubscribe(HRef id) {
+        if (!watchEnabled) {
+            return;
+        }
         subs.remove(id.toString());
         if (ensureConnected()) {
             try {
@@ -185,7 +212,7 @@ public class Haystack {
 
     private void poll() {
         synchronized (lock) {
-            if (subs.isEmpty()) {
+            if (!watchEnabled || subs.isEmpty()) {
                 return;
             }
             ensureConnected();
