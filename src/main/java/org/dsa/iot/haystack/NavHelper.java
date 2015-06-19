@@ -16,17 +16,22 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author Samuel Grenier
  */
 public class NavHelper {
 
-    private static final int REFRESH_TIME = 10000;
+    private static final long REFRESH_TIME = TimeUnit.SECONDS.toMillis(60);
     private static final Logger LOGGER;
+
+    private final ScheduledThreadPoolExecutor stpe;
     private final Haystack haystack;
 
     NavHelper(Haystack haystack) {
+        this.stpe = Objects.createDaemonThreadPool();
         this.haystack = haystack;
     }
 
@@ -43,7 +48,7 @@ public class NavHelper {
                 }
                 lastUpdate = curr;
 
-                Objects.getDaemonThreadPool().execute(new Runnable() {
+                stpe.execute(new Runnable() {
                     @Override
                     public void run() {
                         HGrid grid = HGrid.EMPTY;

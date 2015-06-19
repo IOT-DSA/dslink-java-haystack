@@ -28,7 +28,7 @@ public class Haystack {
     private final NavHelper helper;
     private final Node node;
 
-    private ScheduledFuture<?> connectFuture;
+    private final ScheduledThreadPoolExecutor stpe;
     private ScheduledFuture<?> pollFuture;
     private HClient client;
 
@@ -36,6 +36,7 @@ public class Haystack {
     private HWatch watch;
 
     Haystack(Node node) {
+        this.stpe = Objects.createDaemonThreadPool();
         this.node = node;
         this.subs = new HashMap<>();
         this.helper = new NavHelper(this);
@@ -43,12 +44,7 @@ public class Haystack {
 
 
     void connect() {
-        if (connectFuture != null) {
-            connectFuture.cancel(false);
-            connectFuture = null;
-        }
         String url = node.getConfig("url").getString();
-        ScheduledThreadPoolExecutor stpe = Objects.getDaemonThreadPool();
         try {
             if (client == null) {
                 String username = node.getConfig("username").getString();
@@ -86,9 +82,7 @@ public class Haystack {
                                 pollFuture.cancel(false);
                                 client = null;
                                 pollFuture = null;
-                                synchronized (Haystack.this) {
-                                    watch = null;
-                                }
+                                watch = null;
                             }
                         }
                     }, 5, 5, TimeUnit.SECONDS);
@@ -148,7 +142,10 @@ public class Haystack {
         }
         if (ensureConnected()) {
             try {
-                watch.sub(new HRef[]{id});
+                HWatch watch = this.watch;
+                if (watch != null) {
+                    watch.sub(new HRef[]{id});
+                }
             } catch (Exception e) {
                 if (e instanceof CallNetworkException) {
                     reconnect();
@@ -167,7 +164,10 @@ public class Haystack {
         subs.remove(id.toString());
         if (ensureConnected()) {
             try {
-                watch.unsub(new HRef[]{id});
+                HWatch watch = this.watch;
+                if (watch != null) {
+                    watch.unsub(new HRef[]{id});
+                }
             } catch (Exception e) {
                 if (e instanceof CallNetworkException) {
                     reconnect();
@@ -187,14 +187,6 @@ public class Haystack {
     }
 
     void stop() {
-        if (connectFuture != null) {
-            try {
-                connectFuture.cancel(false);
-            } catch (Exception ignored) {
-            }
-            connectFuture = null;
-        }
-
         if (pollFuture != null) {
             try {
                 pollFuture.cancel(true);
@@ -217,12 +209,18 @@ public class Haystack {
             }
             ensureConnected();
 
-            HGrid grid;
+            HGrid grid = null;
             try {
-                grid = watch.pollChanges();
+                HWatch watch = this.watch;
+                if (watch != null) {
+                    grid = watch.pollChanges();
+                }
             } catch (CallNetworkException e) {
                 reconnect();
-                grid = watch.pollChanges();
+            }
+
+            if (grid == null) {
+                return;
             }
 
             Iterator it = grid.iterator();
