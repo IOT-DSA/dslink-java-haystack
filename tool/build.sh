@@ -2,4 +2,4 @@
 set -e
 rm -rf build
 ./gradlew distZip --refresh-dependencies
-cp build/distributions/*.zip ../../files/mqtt.zip
+cp build/distributions/*.zip ../../files/haystack.zip
