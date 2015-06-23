@@ -128,7 +128,7 @@ public class NavHelper {
                                 if (navId != null) {
                                     id = navId.toString();
                                     handler = getNavHandler(id);
-                                    b.getChild().setHasChildren(true);
+                                    b.setHasChildren(true);
                                     b.getListener().setOnListHandler(handler);
                                 }
                                 iterateRow(b.build(), childRow);
