@@ -122,15 +122,16 @@ public class NavHelper {
                             final HRow childRow = (HRow) childrenIt.next();
                             final String childName = getName(childRow);
                             if (childName != null) {
-                                Node n = child.createChild(childName).build();
-                                n.setSerializable(false);
+                                NodeBuilder b = child.createChild(childName);
+                                b.getChild().setSerializable(false);
                                 navId = childRow.get("navId", false);
                                 if (navId != null) {
                                     id = navId.toString();
                                     handler = getNavHandler(id);
-                                    n.getListener().setOnListHandler(handler);
+                                    b.getChild().setHasChildren(true);
+                                    b.getListener().setOnListHandler(handler);
                                 }
-                                iterateRow(n, childRow);
+                                iterateRow(b.build(), childRow);
                             }
                         }
                     }
