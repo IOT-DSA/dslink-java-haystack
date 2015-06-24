@@ -94,11 +94,15 @@ public class NavHelper {
                 continue;
             }
 
+            HVal navId = row.get("navId", false);
             final NodeBuilder builder = node.createChild(name);
+            if (navId != null) {
+                builder.setHasChildren(true);
+            }
             final Node child = builder.build();
             child.setSerializable(false);
 
-            HVal navId = row.get("navId", false);
+
             if (navId != null) {
                 String id = navId.toString();
                 LOGGER.debug("Received navId of {}", id);
