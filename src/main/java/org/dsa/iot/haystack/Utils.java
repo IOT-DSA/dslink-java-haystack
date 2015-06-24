@@ -75,6 +75,7 @@ public class Utils {
         hisReadNode.setAction(Actions.getHisReadAction(haystack));
         hisReadNode.build();
 
+        node.setHasChildren(true);
         NodeListener listener = node.getListener();
         Handler<Node> handler = haystack.getHelper().getNavHandler(null);
         listener.setOnListHandler(handler);
