@@ -35,6 +35,24 @@ public class NavHelper {
         this.haystack = haystack;
     }
 
+    Handler<Node> getClosedHandler() {
+        return new Handler<Node>() {
+            @Override
+            public void handle(Node event) {
+                LOGGER.info("Wants to remove: {}", event.getPath());
+                Map<String, Node> children = event.getChildren();
+                if (children != null) {
+                    for (Node n : children.values()) {
+                        if (n.getValue() == null) {
+                            event.removeChild(n);
+                            LOGGER.debug("Removed: {}", n.getPath());
+                        }
+                    }
+                }
+            }
+        };
+    }
+
     Handler<Node> getNavHandler(final String navId) {
         return new Handler<Node>() {
 
@@ -55,10 +73,11 @@ public class NavHelper {
                         if (navId != null) {
                             HGridBuilder builder = new HGridBuilder();
                             builder.addCol("navId");
-                            builder.addRow(new HVal[]{
+                            builder.addRow(new HVal[] {
                                     HUri.make(navId)
                             });
                             grid = builder.toGrid();
+
                             String path = event.getPath();
                             LOGGER.info("Navigating: {} ({})", navId, path);
                         } else {
@@ -106,8 +125,11 @@ public class NavHelper {
             if (navId != null) {
                 String id = navId.toString();
                 LOGGER.debug("Received navId of {}", id);
-                Handler<Node> handler = getNavHandler(id);
-                child.getListener().setOnListHandler(handler);
+
+                final Handler<Node> closedHandler = getClosedHandler();
+                Handler<Node> navHandler = getNavHandler(id);
+                child.getListener().setOnListClosedHandler(closedHandler);
+                child.getListener().setOnListHandler(navHandler);
 
                 HGridBuilder hGridBuilder = new HGridBuilder();
                 hGridBuilder.addCol("navId");
@@ -116,9 +138,11 @@ public class NavHelper {
                 try {
                     HGrid children = haystack.call("nav", grid);
 
-                    StringWriter writer = new StringWriter();
-                    nav.dump(new PrintWriter(writer));
-                    LOGGER.debug("Received nav: {}", writer.toString());
+                    if (LOGGER.isDebugEnabled()) {
+                        StringWriter writer = new StringWriter();
+                        nav.dump(new PrintWriter(writer));
+                        LOGGER.debug("Received nav: {}", writer.toString());
+                    }
 
                     if (children != null) {
                         Iterator childrenIt = children.iterator();
@@ -131,9 +155,11 @@ public class NavHelper {
                                 navId = childRow.get("navId", false);
                                 if (navId != null) {
                                     id = navId.toString();
-                                    handler = getNavHandler(id);
+                                    navHandler = getNavHandler(id);
                                     b.setHasChildren(true);
-                                    b.getListener().setOnListHandler(handler);
+                                    b.setRoConfig("navId", new Value(id));
+                                    b.getListener().setOnListClosedHandler(closedHandler);
+                                    b.getListener().setOnListHandler(navHandler);
                                 }
                                 iterateRow(b.build(), childRow);
                             }
