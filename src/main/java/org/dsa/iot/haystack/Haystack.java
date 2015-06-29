@@ -113,6 +113,18 @@ public class Haystack {
         return null;
     }
 
+    HGrid read(String filter, int limit) {
+        if (ensureConnected()) {
+            try {
+                return client.readAll(filter, limit);
+            } catch (CallNetworkException e) {
+                reconnect();
+                return client.readAll(filter, limit);
+            }
+        }
+        return null;
+    }
+
     HGrid eval(String expr) {
         if (ensureConnected()) {
             try {

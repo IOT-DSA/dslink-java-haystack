@@ -82,7 +82,7 @@ public class Actions {
                 Value vLimit = event.getParameter("limit");
 
                 String filter = vFilter.getString();
-                HGridBuilder builder = new HGridBuilder();
+                /*HGridBuilder builder = new HGridBuilder();
                 builder.addCol("filter");
                 {
                     HVal[] row;
@@ -99,14 +99,21 @@ public class Actions {
                         };
                     }
                     builder.addRow(row);
+                }*/
+
+                HGrid grid;
+                if (vLimit != null) {
+                    int lim = vLimit.getNumber().intValue();
+                    grid = haystack.read(filter, lim);
+                } else {
+                    grid = haystack.read(filter, 1);
                 }
 
-                HGrid grid = haystack.call("read", builder.toGrid());
                 if (grid != null) {
                     buildTable(grid, event);
                 }
             }
-        }, Action.InvokeMode.ASYNC);
+        });
         a.addParameter(new Parameter("filter", ValueType.STRING));
         a.addParameter(new Parameter("limit", ValueType.NUMBER));
         a.setResultType(ResultType.TABLE);
@@ -123,7 +130,7 @@ public class Actions {
                 HGrid grid = haystack.eval(expr);
                 buildTable(grid, event);
             }
-        }, Action.InvokeMode.ASYNC);
+        });
         a.addParameter(new Parameter("expr", ValueType.STRING));
         a.setResultType(ResultType.TABLE);
         return a;
@@ -151,7 +158,7 @@ public class Actions {
                     buildTable(grid, event);
                 }
             }
-        }, Action.InvokeMode.ASYNC);
+        });
         a.addParameter(new Parameter("id", ValueType.STRING));
         a.addParameter(new Parameter("range", ValueType.STRING));
         a.setResultType(ResultType.TABLE);
