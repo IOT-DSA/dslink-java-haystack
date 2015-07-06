@@ -97,6 +97,7 @@ public class Haystack {
     }
 
     private void reconnect() {
+        LOGGER.warn("Reconnecting");
         stop();
         connect();
     }
