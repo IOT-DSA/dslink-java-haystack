@@ -7,13 +7,12 @@ import org.dsa.iot.dslink.node.actions.Action;
 import org.dsa.iot.dslink.node.actions.ActionResult;
 import org.dsa.iot.dslink.node.actions.Parameter;
 import org.dsa.iot.dslink.node.actions.ResultType;
+import org.dsa.iot.dslink.node.actions.table.Row;
+import org.dsa.iot.dslink.node.actions.table.Table;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
-import org.dsa.iot.dslink.node.value.ValueUtils;
 import org.projecthaystack.*;
 import org.vertx.java.core.Handler;
-import org.vertx.java.core.json.JsonArray;
-import org.vertx.java.core.json.JsonObject;
 
 import java.util.Iterator;
 
@@ -166,38 +165,27 @@ public class Actions {
     }
 
     private static void buildTable(HGrid in, ActionResult out) {
-        {
-            JsonArray columns = new JsonArray();
-            for (int i = 0; i < in.numCols(); i++) {
-                JsonObject col = new JsonObject();
-                col.putString("name", in.col(i).name());
-                col.putString("type", ValueType.DYNAMIC.toJsonString());
-                columns.addObject(col);
-            }
-            out.setColumns(columns);
+        Table t = out.getTable();
+        for (int i = 0; i < in.numCols(); i++) {
+            String name = in.col(i).name();
+            Parameter p = new Parameter(name, ValueType.DYNAMIC);
+            t.addColumn(p);
         }
 
-        {
-            JsonArray results = new JsonArray();
-            Iterator it = in.iterator();
-            while (it.hasNext()) {
-                HRow row = (HRow) it.next();
-                JsonArray res = new JsonArray();
-
-                for (int i = 0; i < in.numCols(); i++) {
-                    HVal val = row.get(in.col(i), false);
-                    if (val != null) {
-                        Value value = Utils.hvalToVal(val);
-                        ValueUtils.toJson(res, value);
-                    } else {
-                        res.add(null);
-                    }
+        Iterator it = in.iterator();
+        while (it.hasNext()) {
+            HRow hRow = (HRow) it.next();
+            Row row = new Row();
+            for (int i = 0; i < in.numCols(); i++) {
+                HVal val = hRow.get(in.col(i), false);
+                if (val != null) {
+                    Value value = Utils.hvalToVal(val);
+                    row.addValue(value);
+                } else {
+                    row.addValue(null);
                 }
-
-                results.addArray(res);
             }
-
-            out.setUpdates(results);
+            t.addRow(row);
         }
     }
 }
