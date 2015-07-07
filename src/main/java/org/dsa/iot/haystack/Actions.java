@@ -81,25 +81,6 @@ public class Actions {
                 Value vLimit = event.getParameter("limit");
 
                 String filter = vFilter.getString();
-                /*HGridBuilder builder = new HGridBuilder();
-                builder.addCol("filter");
-                {
-                    HVal[] row;
-                    if (vLimit != null) {
-                        int limit = vLimit.getNumber().intValue();
-                        row = new HVal[]{
-                                HStr.make(filter),
-                                HNum.make(limit)
-                        };
-                        builder.addCol("limit");
-                    } else {
-                        row = new HVal[]{
-                                HStr.make(filter)
-                        };
-                    }
-                    builder.addRow(row);
-                }*/
-
                 HGrid grid;
                 if (vLimit != null) {
                     int lim = vLimit.getNumber().intValue();
