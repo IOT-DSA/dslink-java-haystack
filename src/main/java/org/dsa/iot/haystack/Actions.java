@@ -3,10 +3,7 @@ package org.dsa.iot.haystack;
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.NodeBuilder;
 import org.dsa.iot.dslink.node.Permission;
-import org.dsa.iot.dslink.node.actions.Action;
-import org.dsa.iot.dslink.node.actions.ActionResult;
-import org.dsa.iot.dslink.node.actions.Parameter;
-import org.dsa.iot.dslink.node.actions.ResultType;
+import org.dsa.iot.dslink.node.actions.*;
 import org.dsa.iot.dslink.node.actions.table.Row;
 import org.dsa.iot.dslink.node.actions.table.Table;
 import org.dsa.iot.dslink.node.value.Value;
@@ -28,18 +25,22 @@ public class Actions {
                 ValueType vt = ValueType.STRING;
                 Value vName = event.getParameter("name", vt);
                 Value vUrl = event.getParameter("url", vt);
-                Value vUser = event.getParameter("username", vt);
-                Value vPass = event.getParameter("password", vt);
+                Value vUser = event.getParameter("username");
+                Value vPass = event.getParameter("password");
 
                 String name = vName.getString();
                 String url = vUrl.getString();
-                String username = vUser.getString();
-                String password = vPass.getString();
 
                 NodeBuilder builder = parent.createChild(name);
                 builder.setConfig("url", new Value(url));
-                builder.setConfig("username", new Value(username));
-                builder.setPassword(password.toCharArray());
+                if (vUser != null) {
+                    String user = vUser.getString();
+                    builder.setConfig("username", new Value(user));
+                }
+                if (vPass != null) {
+                    char[] pass = vPass.getString().toCharArray();
+                    builder.setPassword(pass);
+                }
                 Node node = builder.build();
 
                 Haystack haystack = new Haystack(node);
@@ -49,7 +50,11 @@ public class Actions {
         a.addParameter(new Parameter("name", ValueType.STRING));
         a.addParameter(new Parameter("url", ValueType.STRING));
         a.addParameter(new Parameter("username", ValueType.STRING));
-        a.addParameter(new Parameter("password", ValueType.STRING));
+        {
+            Parameter p = new Parameter("password", ValueType.STRING);
+            p.setEditorType(EditorType.PASSWORD);
+            a.addParameter(p);
+        }
         return a;
     }
 
