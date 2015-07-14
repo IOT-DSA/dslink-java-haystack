@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 set -e
 rm -rf build
-./gradlew distZip --refresh-dependencies
+./gradlew clean distZip --refresh-dependencies
 cp build/distributions/*.zip ../../files/haystack.zip
