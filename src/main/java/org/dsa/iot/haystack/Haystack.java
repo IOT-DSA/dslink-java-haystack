@@ -36,6 +36,7 @@ public class Haystack {
     private HWatch watch;
 
     Haystack(Node node) {
+        node.setMetaData(this);
         this.stpe = Objects.createDaemonThreadPool();
         this.node = node;
         this.subs = new HashMap<>();
@@ -209,6 +210,12 @@ public class Haystack {
 
         client = null;
         watch = null;
+    }
+
+    void destroy() {
+        stop();
+        stpe.shutdownNow();
+        helper.destroy();
     }
 
     private boolean isConnected() {

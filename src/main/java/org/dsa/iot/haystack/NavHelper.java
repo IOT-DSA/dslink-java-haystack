@@ -35,6 +35,10 @@ public class NavHelper {
         this.haystack = haystack;
     }
 
+    void destroy() {
+        stpe.shutdownNow();
+    }
+
     Handler<Node> getClosedHandler() {
         return new Handler<Node>() {
             @Override
