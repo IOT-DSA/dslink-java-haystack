@@ -1,5 +1,5 @@
 {
-  "name": "haystack",
+  "name": "dslink-java-haystack",
   "version": "0.0.1",
   "description": "An implementation dslink of a haystack protocol consumer",
   "license": "Apache",
