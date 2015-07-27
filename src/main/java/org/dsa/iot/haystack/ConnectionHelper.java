@@ -32,9 +32,9 @@ public class ConnectionHelper {
     private final Handler<HWatch> watchEnabled;
     private final Handler<Void> watchDisabled;
 
-    private String username;
-    private char[] password;
-    private String url;
+    private volatile String username;
+    private volatile char[] password;
+    private volatile String url;
 
     private ScheduledFuture<?> connectFuture;
     private HClient client;
@@ -49,6 +49,16 @@ public class ConnectionHelper {
         username = node.getConfig("username").getString();
         password = node.getPassword();
         url = node.getConfig("url").getString();
+    }
+
+    public void editConnection(String url, String user, char[] pass) {
+        close();
+        this.url = url;
+        this.username = user;
+        if (pass != null) {
+            this.password = pass;
+        }
+        getClient(null);
     }
 
     public void close() {
@@ -120,8 +130,8 @@ public class ConnectionHelper {
         public void run() {
             try {
                 String pass = String.valueOf(password);
-                client = HClient.open(url, username, pass);
                 synchronized (lock) {
+                    client = HClient.open(url, username, pass);
                     connectFuture.cancel(false);
                     connectFuture = null;
 

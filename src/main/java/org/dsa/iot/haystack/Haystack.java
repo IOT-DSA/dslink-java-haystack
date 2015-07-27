@@ -2,6 +2,7 @@ package org.dsa.iot.haystack;
 
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.NodeBuilder;
+import org.dsa.iot.dslink.node.actions.Action;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.util.Objects;
 import org.dsa.iot.dslink.util.StringUtils;
@@ -37,10 +38,6 @@ public class Haystack {
         this.node = node;
         this.subs = new ConcurrentHashMap<>();
         this.helper = new NavHelper(this);
-        init();
-    }
-
-    private void init() {
         this.conn = new ConnectionHelper(node, new Handler<HWatch>() {
             @Override
             public void handle(HWatch event) {
@@ -83,6 +80,13 @@ public class Haystack {
         });
         // Ensure subscriptions are subscribed
         conn.getClient(null);
+    }
+
+    void editConnection(String url, String user, String pass) {
+        char[] p = pass == null ? null : pass.toCharArray();
+        conn.editConnection(url, user, p);
+        Action a = Actions.getEditServerAction(node);
+        node.getChild("editServer").setAction(a);
     }
 
     void call(final String op,

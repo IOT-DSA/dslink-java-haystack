@@ -69,6 +69,48 @@ public class Actions {
         });
     }
 
+    static Action getEditServerAction(final Node node) {
+        Action a = new Action(Permission.READ, new Handler<ActionResult>() {
+            @Override
+            public void handle(ActionResult event) {
+                Haystack haystack = node.getMetaData();
+
+                Value vUrl = event.getParameter("url", ValueType.STRING);
+                Value vUser = event.getParameter("username", ValueType.STRING);
+                Value vPass = event.getParameter("password");
+
+                String url = vUrl.getString();
+                String user = vUser.getString();
+                String pass = vPass == null ? null : vPass.getString();
+
+                node.setConfig("url", vUrl);
+                node.setConfig("username", vUser);
+                if (vPass != null) {
+                    node.setConfig("vPass", new Value(pass));
+                }
+
+                haystack.editConnection(url, user, pass);
+            }
+        });
+        {
+            Parameter p = new Parameter("url", ValueType.STRING);
+            p.setDefaultValue(node.getConfig("url"));
+            a.addParameter(p);
+        }
+        {
+            Parameter p = new Parameter("username", ValueType.STRING);
+            p.setDefaultValue(node.getConfig("username"));
+            a.addParameter(p);
+        }
+        {
+            Parameter p = new Parameter("password", ValueType.STRING);
+            p.setDescription("Leave blank to leave password unchanged");
+            p.setEditorType(EditorType.PASSWORD);
+            a.addParameter(p);
+        }
+        return a;
+    }
+
     static Action getReadAction(final Haystack haystack) {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override

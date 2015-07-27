@@ -56,19 +56,33 @@ public class Utils {
 
     static void initCommon(Haystack haystack, Node node) {
         NodeBuilder remServer = node.createChild("removeServer");
+        remServer.setDisplayName("Remove Server");
         remServer.setAction(Actions.getRemoveServerAction(node, haystack));
+        remServer.setSerializable(false);
         remServer.build();
 
+        NodeBuilder editServer = node.createChild("editServer");
+        editServer.setDisplayName("Edit Server");
+        editServer.setAction(Actions.getEditServerAction(node));
+        editServer.setSerializable(false);
+        editServer.build();
+
         NodeBuilder readNode = node.createChild("read");
+        readNode.setDisplayName("Read");
         readNode.setAction(Actions.getReadAction(haystack));
+        readNode.setSerializable(false);
         readNode.build();
 
         NodeBuilder evalNode = node.createChild("eval");
+        evalNode.setDisplayName("Evaluate");
         evalNode.setAction(Actions.getEvalAction(haystack));
+        evalNode.setSerializable(false);
         evalNode.build();
 
         NodeBuilder hisReadNode = node.createChild("hisRead");
+        hisReadNode.setDisplayName("History Read");
         hisReadNode.setAction(Actions.getHisReadAction(haystack));
+        hisReadNode.setSerializable(false);
         hisReadNode.build();
 
         node.setHasChildren(true);
