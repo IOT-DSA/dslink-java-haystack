@@ -59,10 +59,6 @@ public class Utils {
         remServer.setAction(Actions.getRemoveServerAction(node, haystack));
         remServer.build();
 
-        NodeBuilder connectNode = node.createChild("connect");
-        connectNode.setAction(Actions.getConnectAction(haystack));
-        connectNode.build();
-
         NodeBuilder readNode = node.createChild("read");
         readNode.setAction(Actions.getReadAction(haystack));
         readNode.build();

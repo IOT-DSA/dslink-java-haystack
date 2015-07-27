@@ -69,15 +69,6 @@ public class Actions {
         });
     }
 
-    static Action getConnectAction(final Haystack haystack) {
-        return new Action(Permission.READ, new Handler<ActionResult>() {
-            @Override
-            public void handle(ActionResult event) {
-                haystack.ensureConnected();
-            }
-        });
-    }
-
     static Action getReadAction(final Haystack haystack) {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
