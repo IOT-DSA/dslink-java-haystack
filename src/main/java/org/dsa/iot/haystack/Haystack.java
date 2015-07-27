@@ -6,12 +6,11 @@ import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.util.Objects;
 import org.dsa.iot.dslink.util.StringUtils;
 import org.projecthaystack.*;
-import org.projecthaystack.client.CallNetworkException;
 import org.projecthaystack.client.HClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.vertx.java.core.Handler;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -21,122 +20,109 @@ import java.util.concurrent.TimeUnit;
  */
 public class Haystack {
 
-    private static final Logger LOGGER;
-
-    private final Object lock = new Object();
     private final Map<String, Node> subs;
     private final NavHelper helper;
     private final Node node;
 
     private final ScheduledThreadPoolExecutor stpe;
     private ScheduledFuture<?> pollFuture;
-    private HClient client;
+    private ConnectionHelper conn;
 
-    private boolean watchEnabled;
     private HWatch watch;
 
     Haystack(Node node) {
+        node.setRoConfig("lu", new Value(0));
         node.setMetaData(this);
         this.stpe = Objects.createDaemonThreadPool();
         this.node = node;
-        this.subs = new HashMap<>();
+        this.subs = new ConcurrentHashMap<>();
         this.helper = new NavHelper(this);
+        init();
     }
 
-
-    void connect() {
-        String url = node.getConfig("url").getString();
-        try {
-            if (client == null) {
-                String username = node.getConfig("username").getString();
-                char[] password = node.getPassword();
-                client = HClient.open(url, username, String.valueOf(password));
-
-                {
-                    HGrid grid = client.ops();
-                    Set<String> ops = new HashSet<>();
-                    for (int i = 0; i < grid.numRows(); ++i) {
-                        ops.add(grid.row(i).get("name").toString());
+    private void init() {
+        this.conn = new ConnectionHelper(node, new Handler<HWatch>() {
+            @Override
+            public void handle(HWatch event) {
+                // on watch enabled
+                if (!subs.isEmpty()) {
+                    // Restore haystack subscriptions
+                    for (Map.Entry<String, Node> entry : subs.entrySet()) {
+                        HRef id = HRef.make(entry.getKey());
+                        Node node = entry.getValue();
+                        subscribe(id, node);
                     }
-
-                    watchEnabled = ops.contains("watchSub");
                 }
 
-                if (watchEnabled) {
-                    watch = client.watchOpen("Haystack DSLink", null);
-                    if (!subs.isEmpty()) {
-                        // Restore haystack subscriptions
-                        for (Map.Entry<String, Node> entry : subs.entrySet()) {
-                            HRef id = HRef.make(entry.getKey());
-                            Node node = entry.getValue();
-                            subscribe(id, node);
+                if (pollFuture != null) {
+                    pollFuture.cancel(false);
+                    pollFuture = null;
+                }
+
+                pollFuture = stpe.scheduleWithFixedDelay(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            poll();
+                        } catch (Exception e) {
+                            pollFuture.cancel(false);
+                            pollFuture = null;
+                            watch = null;
                         }
                     }
+                }, 5, 5, TimeUnit.SECONDS);
+            }
+        }, new Handler<Void>() {
+            @Override
+            public void handle(Void event) {
+                // on watch disabled
+                pollFuture.cancel(false);
+                pollFuture = null;
+                watch = null;
+            }
+        });
+        // Ensure subscriptions are subscribed
+        conn.getClient(null);
+    }
 
-
-                    pollFuture = stpe.scheduleWithFixedDelay(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                poll();
-                            } catch (Exception e) {
-                                pollFuture.cancel(false);
-                                client = null;
-                                pollFuture = null;
-                                watch = null;
-                            }
-                        }
-                    }, 5, 5, TimeUnit.SECONDS);
-                } else {
-                    LOGGER.warn("watchSub is disabled for this server");
+    void call(final String op,
+               final HGrid grid,
+               final Handler<HGrid> onComplete) {
+        conn.getClient(new Handler<HClient>() {
+            @Override
+            public void handle(HClient event) {
+                HGrid ret = event.call(op, grid);
+                if (onComplete != null) {
+                    onComplete.handle(ret);
                 }
-                LOGGER.info("Opened Haystack connection to {}", url);
             }
-        } catch (Exception e) {
-            LOGGER.error("Failed to open Haystack connection to {}", url);
-        }
+        });
     }
 
-    private void reconnect() {
-        LOGGER.warn("Reconnecting");
-        stop();
-        connect();
+    void read(final String filter,
+              final int limit,
+              final Handler<HGrid> onComplete) {
+        conn.getClient(new Handler<HClient>() {
+            @Override
+            public void handle(HClient event) {
+                HGrid ret = event.readAll(filter, limit);
+                if (onComplete != null) {
+                    onComplete.handle(ret);
+                }
+            }
+        });
     }
 
-    HGrid call(String op, HGrid grid) {
-        if (ensureConnected()) {
-            try {
-                return client.call(op, grid);
-            } catch (CallNetworkException e) {
-                reconnect();
-                return client.call(op, grid);
+    void eval(final String expr, final Handler<HGrid> onComplete) {
+        conn.getClient(new Handler<HClient>() {
+            @Override
+            public void handle(HClient event) {
+                HGrid ret = event.eval(expr);
+                if (onComplete != null) {
+                    onComplete.handle(ret);
+                }
             }
-        }
-        return null;
-    }
-
-    HGrid read(String filter, int limit) {
-        if (ensureConnected()) {
-            try {
-                return client.readAll(filter, limit);
-            } catch (CallNetworkException e) {
-                reconnect();
-                return client.readAll(filter, limit);
-            }
-        }
-        return null;
-    }
-
-    HGrid eval(String expr) {
-        if (ensureConnected()) {
-            try {
-                return client.eval(expr);
-            } catch (CallNetworkException e) {
-                reconnect();
-                return client.eval(expr);
-            }
-        }
-        return null;
+        });
     }
 
     NavHelper getHelper() {
@@ -147,57 +133,39 @@ public class Haystack {
         subscribe(id, node, true);
     }
 
-    private void subscribe(HRef id, Node node, boolean add) {
-        if (!watchEnabled) {
+    private void subscribe(final HRef id, Node node, boolean add) {
+        if (watch == null) {
             return;
         }
         if (add) {
             subs.put(id.toString(), node);
         }
-        if (ensureConnected()) {
-            try {
-                HWatch watch = this.watch;
+
+        conn.getClient(new Handler<HClient>() {
+            @Override
+            public void handle(HClient event) {
+                HWatch watch = Haystack.this.watch;
                 if (watch != null) {
                     watch.sub(new HRef[]{id});
                 }
-            } catch (Exception e) {
-                if (e instanceof CallNetworkException) {
-                    reconnect();
-                    subscribe(id, node, add);
-                } else {
-                    LOGGER.error("Failed to subscribe", e);
-                }
             }
-        }
+        });
     }
 
-    void unsubscribe(HRef id) {
-        if (!watchEnabled) {
+    void unsubscribe(final HRef id) {
+        if (watch == null) {
             return;
         }
         subs.remove(id.toString());
-        if (ensureConnected()) {
-            try {
-                HWatch watch = this.watch;
+        conn.getClient(new Handler<HClient>() {
+            @Override
+            public void handle(HClient event) {
+                HWatch watch = Haystack.this.watch;
                 if (watch != null) {
                     watch.unsub(new HRef[]{id});
                 }
-            } catch (Exception e) {
-                if (e instanceof CallNetworkException) {
-                    reconnect();
-                    unsubscribe(id);
-                } else {
-                    LOGGER.error("Failed to unsubscribe", e);
-                }
             }
-        }
-    }
-
-    boolean ensureConnected() {
-        if (!isConnected()) {
-            connect();
-        }
-        return isConnected();
+        });
     }
 
     void stop() {
@@ -208,8 +176,8 @@ public class Haystack {
             }
         }
 
-        client = null;
         watch = null;
+        conn.close();
     }
 
     void destroy() {
@@ -218,64 +186,49 @@ public class Haystack {
         helper.destroy();
     }
 
-    private boolean isConnected() {
-        return client != null;
-    }
-
     private void poll() {
-        synchronized (lock) {
-            if (!watchEnabled || subs.isEmpty()) {
-                return;
-            }
-            ensureConnected();
+        HWatch watch = this.watch;
+        if (watch == null || subs.isEmpty()) {
+            return;
+        }
 
-            HGrid grid = null;
-            try {
-                HWatch watch = this.watch;
-                if (watch != null) {
-                    grid = watch.pollChanges();
+        HGrid grid = watch.pollChanges();
+        if (grid == null) {
+            return;
+        }
+
+        Iterator it = grid.iterator();
+        while (it.hasNext()) {
+            HRow row = (HRow) it.next();
+            Node node = subs.get(row.id().toString());
+            if (node != null) {
+                Map<String, Node> children = node.getChildren();
+                List<String> remove = new ArrayList<>(children.keySet());
+
+                Iterator rowIt = row.iterator();
+                while (rowIt.hasNext()) {
+                    Map.Entry entry = (Map.Entry) rowIt.next();
+                    String name = (String) entry.getKey();
+                    HVal val = (HVal) entry.getValue();
+                    Value value = Utils.hvalToVal(val);
+
+                    String filtered = StringUtils.filterBannedChars(name);
+                    Node child = children.get(filtered);
+                    if (child != null) {
+                        child.setValueType(value.getType());
+                        child.setValue(value);
+                    } else {
+                        NodeBuilder b = node.createChild(filtered);
+                        b.setValueType(value.getType());
+                        b.setValue(value);
+                        Node n = b.build();
+                        n.setSerializable(false);
+                    }
+                    remove.remove(filtered);
                 }
-            } catch (CallNetworkException e) {
-                reconnect();
-            }
 
-            if (grid == null) {
-                return;
-            }
-
-            Iterator it = grid.iterator();
-            while (it.hasNext()) {
-                HRow row = (HRow) it.next();
-                Node node = subs.get(row.id().toString());
-                if (node != null) {
-                    Map<String, Node> children = node.getChildren();
-                    List<String> remove = new ArrayList<>(children.keySet());
-
-                    Iterator rowIt = row.iterator();
-                    while (rowIt.hasNext()) {
-                        Map.Entry entry = (Map.Entry) rowIt.next();
-                        String name = (String) entry.getKey();
-                        HVal val = (HVal) entry.getValue();
-                        Value value = Utils.hvalToVal(val);
-
-                        String filtered = StringUtils.filterBannedChars(name);
-                        Node child = children.get(filtered);
-                        if (child != null) {
-                            child.setValueType(value.getType());
-                            child.setValue(value);
-                        } else {
-                            NodeBuilder b = node.createChild(filtered);
-                            b.setValueType(value.getType());
-                            b.setValue(value);
-                            Node n = b.build();
-                            n.setSerializable(false);
-                        }
-                        remove.remove(filtered);
-                    }
-
-                    for (String s : remove) {
-                        node.removeChild(s);
-                    }
+                for (String s : remove) {
+                    node.removeChild(s);
                 }
             }
         }
@@ -283,6 +236,8 @@ public class Haystack {
 
     public static void init(Node superRoot) {
         NodeBuilder builder = superRoot.createChild("addServer");
+        builder.setDisplayName("Add Server");
+        builder.setSerializable(false);
         builder.setAction(Actions.getAddServerAction(superRoot)).build();
 
         Map<String, Node> children = superRoot.getChildren();
@@ -295,9 +250,5 @@ public class Haystack {
                 }
             }
         }
-    }
-
-    static {
-        LOGGER = LoggerFactory.getLogger(Haystack.class);
     }
 }

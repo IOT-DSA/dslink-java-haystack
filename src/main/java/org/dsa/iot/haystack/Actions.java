@@ -72,22 +72,24 @@ public class Actions {
     static Action getReadAction(final Haystack haystack) {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
-            public void handle(ActionResult event) {
+            public void handle(final ActionResult event) {
                 Value vFilter = event.getParameter("filter", ValueType.STRING);
                 Value vLimit = event.getParameter("limit");
 
                 String filter = vFilter.getString();
-                HGrid grid;
+                int limit = 1;
                 if (vLimit != null) {
-                    int lim = vLimit.getNumber().intValue();
-                    grid = haystack.read(filter, lim);
-                } else {
-                    grid = haystack.read(filter, 1);
+                    limit = vLimit.getNumber().intValue();
                 }
+                haystack.read(filter, limit, new Handler<HGrid>() {
+                    @Override
+                    public void handle(HGrid grid) {
+                        if (grid != null) {
+                            buildTable(grid, event);
+                        }
+                    }
+                });
 
-                if (grid != null) {
-                    buildTable(grid, event);
-                }
             }
         });
         a.addParameter(new Parameter("filter", ValueType.STRING));
@@ -99,12 +101,16 @@ public class Actions {
     static Action getEvalAction(final Haystack haystack) {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
-            public void handle(ActionResult event) {
+            public void handle(final ActionResult event) {
                 Value vExpr = event.getParameter("expr", ValueType.STRING);
                 String expr = vExpr.getString();
 
-                HGrid grid = haystack.eval(expr);
-                buildTable(grid, event);
+                haystack.eval(expr, new Handler<HGrid>() {
+                    @Override
+                    public void handle(HGrid grid) {
+                        buildTable(grid, event);
+                    }
+                });
             }
         });
         a.addParameter(new Parameter("expr", ValueType.STRING));
@@ -115,7 +121,7 @@ public class Actions {
     static Action getHisReadAction(final Haystack haystack) {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
-            public void handle(ActionResult event) {
+            public void handle(final ActionResult event) {
                 Value vId = event.getParameter("id", ValueType.STRING);
                 Value vRange = event.getParameter("range", ValueType.STRING);
                 String id = vId.getString();
@@ -129,10 +135,15 @@ public class Actions {
                         HStr.make(range)
                 });
 
-                HGrid grid = haystack.call("hisRead", builder.toGrid());
-                if (grid != null) {
-                    buildTable(grid, event);
-                }
+                haystack.call("hisRead", builder.toGrid(), new Handler<HGrid>() {
+                    @Override
+                    public void handle(HGrid grid) {
+                        if (grid != null) {
+                            buildTable(grid, event);
+                        }
+                    }
+                });
+
             }
         });
         a.addParameter(new Parameter("id", ValueType.STRING));
