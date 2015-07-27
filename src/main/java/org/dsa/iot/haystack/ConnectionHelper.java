@@ -51,12 +51,12 @@ public class ConnectionHelper {
         url = node.getConfig("url").getString();
     }
 
-    public void editConnection(String url, String user, char[] pass) {
+    public void editConnection(String url, String user, String pass) {
         close();
         this.url = url;
         this.username = user;
         if (pass != null) {
-            this.password = pass;
+            this.password = pass.toCharArray();
         }
         getClient(null);
     }

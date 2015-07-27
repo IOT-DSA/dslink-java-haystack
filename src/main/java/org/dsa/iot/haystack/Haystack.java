@@ -83,8 +83,7 @@ public class Haystack {
     }
 
     void editConnection(String url, String user, String pass) {
-        char[] p = pass == null ? null : pass.toCharArray();
-        conn.editConnection(url, user, p);
+        conn.editConnection(url, user, pass);
         Action a = Actions.getEditServerAction(node);
         node.getChild("editServer").setAction(a);
     }
