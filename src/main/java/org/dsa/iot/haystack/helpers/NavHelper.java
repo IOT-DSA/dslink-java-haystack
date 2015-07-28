@@ -66,6 +66,9 @@ public class NavHelper {
 
             @Override
             public void handle(final Node event) {
+                if (event == null) {
+                    return;
+                }
                 Value val = event.getRoConfig("lu");
                 long curr = System.currentTimeMillis();
                 if (val == null) {
