@@ -6,6 +6,8 @@ import org.dsa.iot.dslink.node.actions.Action;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.util.Objects;
 import org.dsa.iot.dslink.util.StringUtils;
+import org.dsa.iot.haystack.helpers.ConnectionHelper;
+import org.dsa.iot.haystack.helpers.NavHelper;
 import org.projecthaystack.*;
 import org.projecthaystack.client.HClient;
 import org.vertx.java.core.Handler;
@@ -82,13 +84,13 @@ public class Haystack {
         conn.getClient(null);
     }
 
-    void editConnection(String url, String user, String pass) {
+    public void editConnection(String url, String user, String pass) {
         conn.editConnection(url, user, pass);
         Action a = Actions.getEditServerAction(node);
         node.getChild("editServer").setAction(a);
     }
 
-    void call(final String op,
+    public void call(final String op,
                final HGrid grid,
                final Handler<HGrid> onComplete) {
         conn.getClient(new Handler<HClient>() {
@@ -128,11 +130,19 @@ public class Haystack {
         });
     }
 
-    NavHelper getHelper() {
+    public ScheduledThreadPoolExecutor getStpe() {
+        return stpe;
+    }
+
+    public ConnectionHelper getConnHelper() {
+        return conn;
+    }
+
+    public NavHelper getNavHelper() {
         return helper;
     }
 
-    void subscribe(HRef id, Node node) {
+    public void subscribe(HRef id, Node node) {
         subscribe(id, node, true);
     }
 
@@ -155,7 +165,7 @@ public class Haystack {
         });
     }
 
-    void unsubscribe(final HRef id) {
+    public void unsubscribe(final HRef id) {
         if (watch == null) {
             return;
         }

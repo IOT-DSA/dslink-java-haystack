@@ -1,5 +1,6 @@
 package org.dsa.iot.haystack;
 
+import org.dsa.iot.dslink.methods.StreamState;
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.NodeBuilder;
 import org.dsa.iot.dslink.node.Permission;
@@ -8,6 +9,7 @@ import org.dsa.iot.dslink.node.actions.table.Row;
 import org.dsa.iot.dslink.node.actions.table.Table;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
+import org.dsa.iot.haystack.helpers.SubHelper;
 import org.projecthaystack.*;
 import org.vertx.java.core.Handler;
 
@@ -108,6 +110,43 @@ public class Actions {
             p.setEditorType(EditorType.PASSWORD);
             a.addParameter(p);
         }
+        return a;
+    }
+
+    static Action getSubscribeAction(final Haystack haystack) {
+        Action a = new Action(Permission.READ, new Handler<ActionResult>() {
+
+            @Override
+            public void handle(ActionResult event) {
+                Value vId = event.getParameter("ID", ValueType.STRING);
+                String id = vId.getString();
+
+                Value vPoll = event.getParameter("Poll Rate", ValueType.NUMBER);
+                int pollRate = vPoll.getNumber().intValue();
+
+                final SubHelper helper = new SubHelper(haystack, id);
+                event.setCloseHandler(new Handler<Void>() {
+                    @Override
+                    public void handle(Void event) {
+                        helper.stop();
+                    }
+                });
+                event.setStreamState(StreamState.OPEN);
+                helper.start(event.getTable(), pollRate);
+            }
+        });
+        {
+            Parameter p = new Parameter("ID", ValueType.STRING);
+            p.setDescription("Haystack ID to subscribe to.");
+            a.addParameter(p);
+        }
+        {
+            Value def = new Value(5000);
+            Parameter p = new Parameter("Poll Rate", ValueType.NUMBER, def);
+            p.setDescription("Poll Rate is in milliseconds.");
+            a.addParameter(p);
+        }
+        a.setResultType(ResultType.STREAM);
         return a;
     }
 

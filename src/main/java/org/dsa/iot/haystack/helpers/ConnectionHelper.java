@@ -1,4 +1,4 @@
-package org.dsa.iot.haystack;
+package org.dsa.iot.haystack.helpers;
 
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.util.Objects;

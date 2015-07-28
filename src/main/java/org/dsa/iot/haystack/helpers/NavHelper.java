@@ -1,4 +1,4 @@
-package org.dsa.iot.haystack;
+package org.dsa.iot.haystack.helpers;
 
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.NodeBuilder;
@@ -6,6 +6,8 @@ import org.dsa.iot.dslink.node.NodeListener;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.util.Objects;
 import org.dsa.iot.dslink.util.StringUtils;
+import org.dsa.iot.haystack.Haystack;
+import org.dsa.iot.haystack.Utils;
 import org.projecthaystack.*;
 import org.projecthaystack.client.CallErrException;
 import org.slf4j.Logger;
@@ -30,12 +32,12 @@ public class NavHelper {
     private final ScheduledThreadPoolExecutor stpe;
     private final Haystack haystack;
 
-    NavHelper(Haystack haystack) {
+    public NavHelper(Haystack haystack) {
         this.stpe = Objects.createDaemonThreadPool();
         this.haystack = haystack;
     }
 
-    void destroy() {
+    public void destroy() {
         stpe.shutdownNow();
     }
 
@@ -58,7 +60,7 @@ public class NavHelper {
         };
     }
 
-    Handler<Node> getNavHandler(final String navId) {
+    public Handler<Node> getNavHandler(final String navId) {
         return new Handler<Node>() {
 
             @Override

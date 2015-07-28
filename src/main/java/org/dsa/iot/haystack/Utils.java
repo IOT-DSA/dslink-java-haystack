@@ -15,7 +15,7 @@ import org.vertx.java.core.Handler;
  */
 public class Utils {
 
-    static Value hvalToVal(HVal val) {
+    public static Value hvalToVal(HVal val) {
         if (val == null) {
             return null;
         } else if (val instanceof HNum) {
@@ -54,7 +54,7 @@ public class Utils {
         return new Value(val.toString());
     }
 
-    static void initCommon(Haystack haystack, Node node) {
+    public static void initCommon(Haystack haystack, Node node) {
         NodeBuilder remServer = node.createChild("removeServer");
         remServer.setDisplayName("Remove Server");
         remServer.setAction(Actions.getRemoveServerAction(node, haystack));
@@ -85,9 +85,15 @@ public class Utils {
         hisReadNode.setSerializable(false);
         hisReadNode.build();
 
+        NodeBuilder subNode = node.createChild("subscribe");
+        subNode.setDisplayName("Subscribe");
+        subNode.setAction(Actions.getSubscribeAction(haystack));
+        subNode.setSerializable(false);
+        subNode.build();
+
         node.setHasChildren(true);
         NodeListener listener = node.getListener();
-        Handler<Node> handler = haystack.getHelper().getNavHandler(null);
+        Handler<Node> handler = haystack.getNavHelper().getNavHandler(null);
         listener.setOnListHandler(handler);
     }
 }
