@@ -8,6 +8,7 @@ import org.dsa.iot.dslink.util.Objects;
 import org.dsa.iot.dslink.util.StringUtils;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
+import org.dsa.iot.haystack.actions.Actions;
 import org.projecthaystack.*;
 import org.projecthaystack.client.CallErrException;
 import org.slf4j.Logger;
@@ -131,6 +132,7 @@ public class NavHelper {
                 continue;
             }
 
+            // Handle child
             HVal navId = row.get("navId", false);
             final NodeBuilder builder = node.createChild(name);
             if (navId != null) {
@@ -139,7 +141,18 @@ public class NavHelper {
             final Node child = builder.build();
             child.setSerializable(false);
 
+            // Handle writable
+            HVal writable = row.get("writable", false);
+            if (writable instanceof HMarker) {
+                HRef id = row.getRef("id");
+                NodeBuilder b = child.createChild("pointWrite");
+                b.setDisplayName("Point Write");
+                b.setSerializable(false);
+                b.setAction(Actions.getPointWriteAction(haystack, id));
+                b.build();
+            }
 
+            // Handle navId
             if (navId != null) {
                 String id = navId.toString();
                 LOGGER.debug("Received navId of {}", id);

@@ -61,14 +61,18 @@ public class Actions {
         return a;
     }
 
-    public static Action getPointWriteAction(final Haystack haystack) {
+    public static Action getPointWriteAction(Haystack haystack) {
+        return getPointWriteAction(haystack, null);
+    }
+
+    public static Action getPointWriteAction(final Haystack haystack,
+                                             final HRef treeId) {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(final ActionResult event) {
                 haystack.getConnHelper().getClient(new Handler<HClient>() {
                     @Override
                     public void handle(HClient client) {
-                        Value vId = event.getParameter("ID", ValueType.STRING);
                         Value vLev = event.getParameter("Level", ValueType.NUMBER);
                         Value vValue = event.getParameter("Value");
                         Value vVT = event.getParameter("Value Type");
@@ -77,8 +81,9 @@ public class Actions {
                         Value vDur = event.getParameter("Duration");
                         Value vDurUnit = event.getParameter("Duration Unit");
 
-                        HRef id;
-                        {
+                        HRef id = treeId;
+                        if (id == null) {
+                            Value vId = event.getParameter("ID", ValueType.STRING);
                             String tmp = vId.getString();
                             if (tmp.startsWith("@")) {
                                 tmp = tmp.substring(1);
@@ -158,7 +163,7 @@ public class Actions {
                 });
             }
         });
-        {
+        if (treeId == null) {
             Parameter p = new Parameter("ID", ValueType.STRING);
             p.setDescription("Haystack ref ID to write to.");
             a.addParameter(p);
