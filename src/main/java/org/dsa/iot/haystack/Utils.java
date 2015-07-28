@@ -4,6 +4,7 @@ import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.NodeBuilder;
 import org.dsa.iot.dslink.node.NodeListener;
 import org.dsa.iot.dslink.node.value.Value;
+import org.dsa.iot.dslink.node.value.ValueType;
 import org.dsa.iot.haystack.actions.Actions;
 import org.dsa.iot.haystack.actions.ServerActions;
 import org.projecthaystack.HBool;
@@ -93,9 +94,24 @@ public class Utils {
         subNode.setSerializable(false);
         subNode.build();
 
+        NodeBuilder writeNode = node.createChild("pointWrite");
+        writeNode.setDisplayName("Point Write");
+        writeNode.setAction(Actions.getPointWriteAction(haystack));
+        writeNode.setSerializable(false);
+        writeNode.build();
+
         node.setHasChildren(true);
         NodeListener listener = node.getListener();
         Handler<Node> handler = haystack.getNavHelper().getNavHandler(null);
         listener.setOnListHandler(handler);
+    }
+
+    public static ValueType getHaystackTypes() {
+        String[] enums = new String[] {
+                "bool",
+                "number",
+                "str",
+        };
+        return ValueType.makeEnum(enums);
     }
 }

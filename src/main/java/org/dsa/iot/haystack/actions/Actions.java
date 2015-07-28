@@ -11,6 +11,7 @@ import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
 import org.dsa.iot.haystack.helpers.SubHelper;
 import org.projecthaystack.*;
+import org.projecthaystack.client.HClient;
 import org.vertx.java.core.Handler;
 
 import java.util.Iterator;
@@ -57,6 +58,185 @@ public class Actions {
             a.addParameter(p);
         }
         a.setResultType(ResultType.STREAM);
+        return a;
+    }
+
+    public static Action getPointWriteAction(final Haystack haystack) {
+        Action a = new Action(Permission.READ, new Handler<ActionResult>() {
+            @Override
+            public void handle(final ActionResult event) {
+                haystack.getConnHelper().getClient(new Handler<HClient>() {
+                    @Override
+                    public void handle(HClient client) {
+                        Value vId = event.getParameter("ID", ValueType.STRING);
+                        Value vLev = event.getParameter("Level", ValueType.NUMBER);
+                        Value vValue = event.getParameter("Value");
+                        Value vVT = event.getParameter("Value Type");
+                        Value vUnit = event.getParameter("Value Unit");
+                        Value vWho = event.getParameter("Who");
+                        Value vDur = event.getParameter("Duration");
+                        Value vDurUnit = event.getParameter("Duration Unit");
+
+                        HRef id;
+                        {
+                            String tmp = vId.getString();
+                            if (tmp.startsWith("@")) {
+                                tmp = tmp.substring(1);
+                            }
+                            id = HRef.make(tmp);
+                        }
+
+                        int level = vLev.getNumber().intValue();
+                        if (level < 1 || level > 17) {
+                            throw new RuntimeException("Invalid level");
+                        }
+
+                        HVal val = null;
+                        if (vValue != null) {
+                            if (vVT == null) {
+                                String err = "Missing value type";
+                                throw new RuntimeException(err);
+                            }
+                            String stringVal = vValue.getString();
+                            String type = vVT.getString();
+                            switch (type) {
+                                case "bool":
+                                    boolean b = Boolean.parseBoolean(stringVal);
+                                    val = HBool.make(b);
+                                    break;
+                                case "number":
+                                    double num = Double.parseDouble(stringVal);
+                                    String unit = null;
+                                    if (vUnit != null) {
+                                        unit = vUnit.getString();
+                                    }
+                                    val = HNum.make(num, unit);
+                                    break;
+                                case "str":
+                                    val = HStr.make(stringVal);
+                                    break;
+                                default:
+                                    String err = "Unknown type: " + type;
+                                    throw new RuntimeException(err);
+                            }
+                        }
+
+                        String who = null;
+                        if (vWho != null) {
+                            who = vWho.getString();
+                        }
+
+                        HNum dur = null;
+                        if (vDur != null) {
+                            if (vDurUnit == null) {
+                                String err = "Missing duration unit";
+                                throw new RuntimeException(err);
+                            }
+                            String unit = vDurUnit.getString();
+                            dur = HNum.make(vDur.getNumber().intValue(), unit);
+                        }
+                        HGrid grid = client.pointWrite(id, level, who, val, dur);
+                        HRow row = grid.row(level - 1);
+                        Row r = new Row();
+
+                        String[] res = new String[] {
+                                "level",
+                                "levelDis",
+                                "val",
+                                "who"
+                        };
+                        for (String s : res) {
+                            val = row.get(s, false);
+                            if (val != null) {
+                                r.addValue(Utils.hvalToVal(val));
+                            } else {
+                                r.addValue(null);
+                            }
+                        }
+                        event.getTable().addRow(r);
+                    }
+                });
+            }
+        });
+        {
+            Parameter p = new Parameter("ID", ValueType.STRING);
+            p.setDescription("Haystack ref ID to write to.");
+            a.addParameter(p);
+        }
+        {
+            Parameter p = new Parameter("Level", ValueType.NUMBER);
+            p.setDescription("Number from 1-17 for level to write.");
+            p.setDefaultValue(new Value(17));
+            a.addParameter(p);
+        }
+        {
+            Parameter p = new Parameter("Value", ValueType.STRING);
+            String msg = "Value to write or none to set the level ";
+            msg += "back to auto.";
+            p.setDescription(msg);
+            a.addParameter(p);
+        }
+        {
+
+            ValueType type = Utils.getHaystackTypes();
+            Parameter p = new Parameter("Value Type", type);
+            p.setDescription("Haystack value type.");
+            p.setDefaultValue(new Value("str"));
+            a.addParameter(p);
+        }
+        {
+
+            Parameter p = new Parameter("Value Unit", ValueType.STRING);
+            p.setDescription("Value unit, only affects number types.");
+            a.addParameter(p);
+        }
+        {
+            Parameter p = new Parameter("Who", ValueType.STRING);
+            String msg = "optional username performing the write, ";
+            msg += "otherwise user dis is used.";
+            p.setDescription(msg);
+            a.addParameter(p);
+        }
+        {
+            Parameter p = new Parameter("Duration", ValueType.NUMBER);
+            String msg = "Duration before level expires back to auto.";
+            msg += " This takes effect when using a level of 8";
+            p.setDescription(msg);
+            a.addParameter(p);
+        }
+        {
+            String[] enums = new String[] {
+                    "ms",
+                    "sec",
+                    "min",
+                    "hr",
+                    "day",
+                    "wk",
+                    "mo",
+                    "yr"
+            };
+            ValueType type = ValueType.makeEnum(enums);
+            Parameter p = new Parameter("Duration Unit", type);
+            p.setDefaultValue(new Value("hr"));
+            p.setDescription("Duration unit.");
+            a.addParameter(p);
+        }
+        {
+            Parameter p = new Parameter("level", ValueType.NUMBER);
+            a.addResult(p);
+        }
+        {
+            Parameter p = new Parameter("levelDis", ValueType.STRING);
+            a.addResult(p);
+        }
+        {
+            Parameter p = new Parameter("val", ValueType.DYNAMIC);
+            a.addResult(p);
+        }
+        {
+            Parameter p = new Parameter("who", ValueType.STRING);
+            a.addResult(p);
+        }
         return a;
     }
 
