@@ -4,6 +4,8 @@ import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.NodeBuilder;
 import org.dsa.iot.dslink.node.NodeListener;
 import org.dsa.iot.dslink.node.value.Value;
+import org.dsa.iot.haystack.actions.Actions;
+import org.dsa.iot.haystack.actions.ServerActions;
 import org.projecthaystack.HBool;
 import org.projecthaystack.HDateTime;
 import org.projecthaystack.HNum;
@@ -57,13 +59,13 @@ public class Utils {
     public static void initCommon(Haystack haystack, Node node) {
         NodeBuilder remServer = node.createChild("removeServer");
         remServer.setDisplayName("Remove Server");
-        remServer.setAction(Actions.getRemoveServerAction(node, haystack));
+        remServer.setAction(ServerActions.getRemoveServerAction(node, haystack));
         remServer.setSerializable(false);
         remServer.build();
 
         NodeBuilder editServer = node.createChild("editServer");
         editServer.setDisplayName("Edit Server");
-        editServer.setAction(Actions.getEditServerAction(node));
+        editServer.setAction(ServerActions.getEditServerAction(node));
         editServer.setSerializable(false);
         editServer.build();
 

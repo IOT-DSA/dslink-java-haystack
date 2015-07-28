@@ -6,6 +6,7 @@ import org.dsa.iot.dslink.node.actions.Action;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.util.Objects;
 import org.dsa.iot.dslink.util.StringUtils;
+import org.dsa.iot.haystack.actions.ServerActions;
 import org.dsa.iot.haystack.helpers.ConnectionHelper;
 import org.dsa.iot.haystack.helpers.NavHelper;
 import org.projecthaystack.*;
@@ -33,7 +34,7 @@ public class Haystack {
 
     private HWatch watch;
 
-    Haystack(Node node) {
+    public Haystack(Node node) {
         node.setRoConfig("lu", new Value(0));
         node.setMetaData(this);
         this.stpe = Objects.createDaemonThreadPool();
@@ -86,7 +87,7 @@ public class Haystack {
 
     public void editConnection(String url, String user, String pass) {
         conn.editConnection(url, user, pass);
-        Action a = Actions.getEditServerAction(node);
+        Action a = ServerActions.getEditServerAction(node);
         node.getChild("editServer").setAction(a);
     }
 
@@ -104,7 +105,7 @@ public class Haystack {
         });
     }
 
-    void read(final String filter,
+    public void read(final String filter,
               final int limit,
               final Handler<HGrid> onComplete) {
         conn.getClient(new Handler<HClient>() {
@@ -118,7 +119,7 @@ public class Haystack {
         });
     }
 
-    void eval(final String expr, final Handler<HGrid> onComplete) {
+    public void eval(final String expr, final Handler<HGrid> onComplete) {
         conn.getClient(new Handler<HClient>() {
             @Override
             public void handle(HClient event) {
@@ -181,7 +182,7 @@ public class Haystack {
         });
     }
 
-    void stop() {
+    public void stop() {
         if (pollFuture != null) {
             try {
                 pollFuture.cancel(true);
@@ -251,7 +252,7 @@ public class Haystack {
         NodeBuilder builder = superRoot.createChild("addServer");
         builder.setDisplayName("Add Server");
         builder.setSerializable(false);
-        builder.setAction(Actions.getAddServerAction(superRoot)).build();
+        builder.setAction(ServerActions.getAddServerAction(superRoot)).build();
 
         Map<String, Node> children = superRoot.getChildren();
         if (children != null) {
