@@ -7,16 +7,24 @@ import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
 import org.dsa.iot.haystack.actions.Actions;
 import org.dsa.iot.haystack.actions.ServerActions;
-import org.projecthaystack.HBool;
-import org.projecthaystack.HDateTime;
-import org.projecthaystack.HNum;
-import org.projecthaystack.HVal;
+import org.projecthaystack.*;
 import org.vertx.java.core.Handler;
 
 /**
  * @author Samuel Grenier
  */
 public class Utils {
+
+    public static HRef idToRef(Value value) {
+        return idToRef(value.getString());
+    }
+
+    public static HRef idToRef(String id) {
+        if (id.startsWith("@")) {
+            id = id.substring(1);
+        }
+        return HRef.make(id);
+    }
 
     public static Value hvalToVal(HVal val) {
         if (val == null) {
@@ -99,6 +107,12 @@ public class Utils {
         writeNode.setAction(Actions.getPointWriteAction(haystack));
         writeNode.setSerializable(false);
         writeNode.build();
+
+        NodeBuilder invokeNode = node.createChild("invoke");
+        invokeNode.setDisplayName("Invoke");
+        invokeNode.setAction(Actions.getInvokeAction(haystack));
+        invokeNode.setSerializable(false);
+        invokeNode.build();
 
         node.setHasChildren(true);
         NodeListener listener = node.getListener();

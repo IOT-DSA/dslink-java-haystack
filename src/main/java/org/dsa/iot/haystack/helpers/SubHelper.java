@@ -31,7 +31,7 @@ public class SubHelper {
     public SubHelper(Haystack haystack, String id) {
         this.haystack = haystack;
         this.stpe = haystack.getStpe();
-        this.id = HRef.make(id);
+        this.id = Utils.idToRef(id);
     }
 
     public void start(final Table table, final int pollRate) {

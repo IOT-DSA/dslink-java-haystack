@@ -13,8 +13,11 @@ import org.dsa.iot.haystack.helpers.SubHelper;
 import org.projecthaystack.*;
 import org.projecthaystack.client.HClient;
 import org.vertx.java.core.Handler;
+import org.vertx.java.core.json.JsonObject;
 
 import java.util.Iterator;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author Samuel Grenier
@@ -28,10 +31,6 @@ public class Actions {
             public void handle(ActionResult event) {
                 Value vId = event.getParameter("ID", ValueType.STRING);
                 String id = vId.getString();
-                if (id.startsWith("@")) {
-                    id = id.substring(1);
-                }
-
                 Value vPoll = event.getParameter("Poll Rate", ValueType.NUMBER);
                 int pollRate = vPoll.getNumber().intValue();
 
@@ -61,6 +60,78 @@ public class Actions {
         return a;
     }
 
+    public static Action getInvokeAction(final Haystack haystack) {
+        Action a = new Action(Permission.READ, new Handler<ActionResult>() {
+            @Override
+            public void handle(final ActionResult event) {
+                final CountDownLatch latch = new CountDownLatch(1);
+                haystack.getConnHelper().getClient(new Handler<HClient>() {
+                    @Override
+                    public void handle(HClient client) {
+                        Value vID = event.getParameter("ID", ValueType.STRING);
+                        final HRef id = Utils.idToRef(vID);
+
+                        Value vAct = event.getParameter("Action", ValueType.STRING);
+                        final String act = vAct.getString();
+
+                        Value vArgs = event.getParameter("Args", ValueType.MAP);
+                        final JsonObject args = vArgs.getMap();
+
+                        HDictBuilder b = new HDictBuilder();
+                        {
+                            String s = args.getString("str");
+                            if (s != null) {
+                                b.add("str", s);
+                            }
+
+                            Boolean bool = args.getBoolean("bool");
+                            if (bool != null) {
+                                b.add("bool", bool);
+                            }
+
+                            Number num = args.getNumber("number");
+                            if (num != null) {
+                                b.add("number", num.doubleValue());
+                            }
+                        }
+                        HGrid res = client.invokeAction(id, act, b.toDict());
+                        buildTable(res, event);
+                        latch.countDown();
+                    }
+                });
+                try {
+                    if (!latch.await(5, TimeUnit.SECONDS)) {
+                        String err = "Failed to retrieve data";
+                        throw new RuntimeException(err);
+                    }
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+        {
+            Parameter p = new Parameter("ID", ValueType.STRING);
+            p.setDescription("Haystack ref ID to write to.");
+            a.addParameter(p);
+        }
+        {
+            Parameter p = new Parameter("Action", ValueType.STRING);
+            p.setDescription("Name of the action to set");
+            a.addParameter(p);
+        }
+        {
+            Parameter p = new Parameter("Args", ValueType.MAP);
+            JsonObject def = new JsonObject();
+            def.putString("str", null);
+            def.putBoolean("bool", null);
+            def.putNumber("number", null);
+            p.setDefaultValue(new Value(def));
+            a.addParameter(p);
+        }
+        a.setResultType(ResultType.TABLE);
+        return a;
+    }
+
     public static Action getPointWriteAction(Haystack haystack) {
         return getPointWriteAction(haystack, null);
     }
@@ -73,7 +144,7 @@ public class Actions {
                 haystack.getConnHelper().getClient(new Handler<HClient>() {
                     @Override
                     public void handle(HClient client) {
-                        Value vLev = event.getParameter("Level", ValueType.NUMBER);
+                        Value vLev = event.getParameter("Level", ValueType.STRING);
                         Value vValue = event.getParameter("Value");
                         Value vVT = event.getParameter("Value Type");
                         Value vUnit = event.getParameter("Value Unit");
@@ -84,14 +155,11 @@ public class Actions {
                         HRef id = treeId;
                         if (id == null) {
                             Value vId = event.getParameter("ID", ValueType.STRING);
-                            String tmp = vId.getString();
-                            if (tmp.startsWith("@")) {
-                                tmp = tmp.substring(1);
-                            }
-                            id = HRef.make(tmp);
+                            id = Utils.idToRef(vId);
                         }
 
-                        int level = vLev.getNumber().intValue();
+                        String sLevel = vLev.getString();
+                        int level = Integer.parseInt(sLevel);
                         if (level < 1 || level > 17) {
                             throw new RuntimeException("Invalid level");
                         }
@@ -169,9 +237,14 @@ public class Actions {
             a.addParameter(p);
         }
         {
-            Parameter p = new Parameter("Level", ValueType.NUMBER);
+            String[] enums = new String[17];
+            for (int i = 0; i < enums.length; ++i) {
+                enums[i] = String.valueOf(i + 1);
+            }
+            ValueType type = ValueType.makeEnum(enums);
+            Parameter p = new Parameter("Level", type);
             p.setDescription("Number from 1-17 for level to write.");
-            p.setDefaultValue(new Value(17));
+            p.setDefaultValue(new Value("17"));
             a.addParameter(p);
         }
         {
