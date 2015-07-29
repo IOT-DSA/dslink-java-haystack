@@ -7,14 +7,17 @@ import org.dsa.iot.dslink.node.actions.table.Row;
 import org.dsa.iot.dslink.node.actions.table.Table;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
+import org.dsa.iot.dslink.node.value.ValueUtils;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
 import org.dsa.iot.haystack.helpers.SubHelper;
 import org.projecthaystack.*;
 import org.projecthaystack.client.HClient;
 import org.vertx.java.core.Handler;
+import org.vertx.java.core.json.JsonObject;
 
 import java.util.Iterator;
+import java.util.Map;
 
 /**
  * @author Samuel Grenier
@@ -329,8 +332,23 @@ public class Actions {
     public static void buildTable(HGrid in, ActionResult out) {
         Table t = out.getTable();
         for (int i = 0; i < in.numCols(); i++) {
-            String name = in.col(i).name();
-            Parameter p = new Parameter(name, ValueType.DYNAMIC);
+            HCol col = in.col(i);
+            Parameter p = new Parameter(col.name(), ValueType.DYNAMIC);
+
+            HDict meta = col.meta();
+            if (meta != null && !meta.isEmpty()) {
+                Iterator it = meta.iterator();
+                JsonObject metaObj = new JsonObject();
+                while (it.hasNext()) {
+                    Map.Entry entry = (Map.Entry) it.next();
+                    String name = (String) entry.getKey();
+                    HVal val = (HVal) entry.getValue();
+                    Value value = Utils.hvalToVal(val);
+                    ValueUtils.toJson(metaObj, name, value);
+                }
+                p.setMetaData(metaObj);
+            }
+
             t.addColumn(p);
         }
 
