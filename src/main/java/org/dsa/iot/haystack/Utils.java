@@ -6,6 +6,7 @@ import org.dsa.iot.dslink.node.NodeListener;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
 import org.dsa.iot.haystack.actions.Actions;
+import org.dsa.iot.haystack.actions.InvokeActions;
 import org.dsa.iot.haystack.actions.ServerActions;
 import org.projecthaystack.*;
 import org.vertx.java.core.Handler;
@@ -24,6 +25,25 @@ public class Utils {
             id = id.substring(1);
         }
         return HRef.make(id);
+    }
+
+    public static void argToDict(HDictBuilder b, String name, Value value) {
+        switch (name) {
+            case "str":
+                b.add(name, value.getString());
+                break;
+            case "bool":
+                b.add(name, value.getBool());
+                break;
+            case "number":
+                b.add(name, value.getNumber().doubleValue());
+                break;
+            case "date":
+                b.add("date", HDate.make(value.getString()));
+                break;
+            default:
+                throw new RuntimeException("Unknown type: " + name);
+        }
     }
 
     public static Value hvalToVal(HVal val) {
@@ -110,7 +130,7 @@ public class Utils {
 
         NodeBuilder invokeNode = node.createChild("invoke");
         invokeNode.setDisplayName("Invoke");
-        invokeNode.setAction(Actions.getInvokeAction(haystack));
+        invokeNode.setAction(InvokeActions.getInvokeAction(haystack));
         invokeNode.setSerializable(false);
         invokeNode.build();
 

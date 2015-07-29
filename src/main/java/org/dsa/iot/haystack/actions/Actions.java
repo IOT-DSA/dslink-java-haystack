@@ -13,11 +13,8 @@ import org.dsa.iot.haystack.helpers.SubHelper;
 import org.projecthaystack.*;
 import org.projecthaystack.client.HClient;
 import org.vertx.java.core.Handler;
-import org.vertx.java.core.json.JsonObject;
 
 import java.util.Iterator;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author Samuel Grenier
@@ -57,78 +54,6 @@ public class Actions {
             a.addParameter(p);
         }
         a.setResultType(ResultType.STREAM);
-        return a;
-    }
-
-    public static Action getInvokeAction(final Haystack haystack) {
-        Action a = new Action(Permission.READ, new Handler<ActionResult>() {
-            @Override
-            public void handle(final ActionResult event) {
-                final CountDownLatch latch = new CountDownLatch(1);
-                haystack.getConnHelper().getClient(new Handler<HClient>() {
-                    @Override
-                    public void handle(HClient client) {
-                        Value vID = event.getParameter("ID", ValueType.STRING);
-                        final HRef id = Utils.idToRef(vID);
-
-                        Value vAct = event.getParameter("Action", ValueType.STRING);
-                        final String act = vAct.getString();
-
-                        Value vArgs = event.getParameter("Args", ValueType.MAP);
-                        final JsonObject args = vArgs.getMap();
-
-                        HDictBuilder b = new HDictBuilder();
-                        {
-                            String s = args.getString("str");
-                            if (s != null) {
-                                b.add("str", s);
-                            }
-
-                            Boolean bool = args.getBoolean("bool");
-                            if (bool != null) {
-                                b.add("bool", bool);
-                            }
-
-                            Number num = args.getNumber("number");
-                            if (num != null) {
-                                b.add("number", num.doubleValue());
-                            }
-                        }
-                        HGrid res = client.invokeAction(id, act, b.toDict());
-                        buildTable(res, event);
-                        latch.countDown();
-                    }
-                });
-                try {
-                    if (!latch.await(5, TimeUnit.SECONDS)) {
-                        String err = "Failed to retrieve data";
-                        throw new RuntimeException(err);
-                    }
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-        {
-            Parameter p = new Parameter("ID", ValueType.STRING);
-            p.setDescription("Haystack ref ID to write to.");
-            a.addParameter(p);
-        }
-        {
-            Parameter p = new Parameter("Action", ValueType.STRING);
-            p.setDescription("Name of the action to set");
-            a.addParameter(p);
-        }
-        {
-            Parameter p = new Parameter("Args", ValueType.MAP);
-            JsonObject def = new JsonObject();
-            def.putString("str", null);
-            def.putBoolean("bool", null);
-            def.putNumber("number", null);
-            p.setDefaultValue(new Value(def));
-            a.addParameter(p);
-        }
-        a.setResultType(ResultType.TABLE);
         return a;
     }
 
@@ -401,7 +326,7 @@ public class Actions {
         return a;
     }
 
-    private static void buildTable(HGrid in, ActionResult out) {
+    public static void buildTable(HGrid in, ActionResult out) {
         Table t = out.getTable();
         for (int i = 0; i < in.numCols(); i++) {
             String name = in.col(i).name();

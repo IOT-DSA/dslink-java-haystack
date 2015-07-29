@@ -9,8 +9,10 @@ import org.dsa.iot.dslink.util.StringUtils;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
 import org.dsa.iot.haystack.actions.Actions;
+import org.dsa.iot.haystack.actions.InvokeActions;
 import org.projecthaystack.*;
 import org.projecthaystack.client.CallErrException;
+import org.projecthaystack.io.HZincReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vertx.java.core.Handler;
@@ -49,13 +51,17 @@ public class NavHelper {
                 event.setRoConfig("lu", new Value(0));
                 LOGGER.info("Wants to remove: {}", event.getPath());
                 Map<String, Node> children = event.getChildren();
-                if (children != null) {
-                    for (Node n : children.values()) {
-                        if (n.getValue() == null) {
-                            event.removeChild(n);
-                            LOGGER.debug("Removed: {}", n.getPath());
-                        }
+                if (children == null) {
+                    return;
+                }
+                for (Node n : children.values()) {
+                    if (n == null
+                            || (n.getValue() == null
+                                && n.getAction() == null)) {
+                        continue;
                     }
+                    event.removeChild(n);
+                    LOGGER.debug("Removed: {}", n.getPath());
                 }
             }
         };
@@ -141,19 +147,38 @@ public class NavHelper {
             if (navId != null) {
                 builder.setHasChildren(true);
             }
-            final Node child = builder.build();
-            child.setSerializable(false);
 
             // Handle writable
             HVal writable = row.get("writable", false);
             if (writable instanceof HMarker) {
-                HRef id = row.getRef("id");
-                NodeBuilder b = child.createChild("pointWrite");
+                HRef id = row.id();
+                NodeBuilder b = builder.getChild().createChild("pointWrite");
                 b.setDisplayName("Point Write");
                 b.setSerializable(false);
                 b.setAction(Actions.getPointWriteAction(haystack, id));
                 b.build();
             }
+
+            // Handle actions
+            HVal actions = row.get("actions", false);
+            if (actions instanceof HStr) {
+                String zinc = ((HStr) actions).val;
+                if (!zinc.endsWith("\n")) {
+                    zinc += "\n";
+                }
+                HZincReader reader = new HZincReader(zinc);
+                HGrid grid = reader.readGrid();
+                Iterator it = grid.iterator();
+                HRef id = row.id();
+                Node child = builder.getChild();
+                while (it.hasNext()) {
+                    HRow r = (HRow) it.next();
+                    InvokeActions.handleAction(haystack, id, child, r);
+                }
+            }
+
+            final Node child = builder.build();
+            child.setSerializable(false);
 
             // Handle navId
             if (navId != null) {
