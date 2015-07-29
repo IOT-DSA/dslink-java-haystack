@@ -140,7 +140,7 @@ public class Actions {
                         HRow row = grid.row(level - 1);
                         Row r = new Row();
 
-                        String[] res = new String[] {
+                        String[] res = new String[]{
                                 "level",
                                 "levelDis",
                                 "val",
@@ -331,6 +331,23 @@ public class Actions {
 
     public static void buildTable(HGrid in, ActionResult out) {
         Table t = out.getTable();
+
+        {
+            HDict meta = in.meta();
+            if (meta != null && !meta.isEmpty()) {
+                Iterator it = meta.iterator();
+                JsonObject metaObj = new JsonObject();
+                while (it.hasNext()) {
+                    Map.Entry entry = (Map.Entry) it.next();
+                    String name = (String) entry.getKey();
+                    HVal val = (HVal) entry.getValue();
+                    Value value = Utils.hvalToVal(val);
+                    ValueUtils.toJson(metaObj, name, value);
+                }
+                t.setTableMeta(metaObj);
+            }
+        }
+
         for (int i = 0; i < in.numCols(); i++) {
             HCol col = in.col(i);
             Parameter p = new Parameter(col.name(), ValueType.DYNAMIC);
