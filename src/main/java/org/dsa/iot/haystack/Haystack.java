@@ -11,6 +11,8 @@ import org.dsa.iot.haystack.helpers.ConnectionHelper;
 import org.dsa.iot.haystack.helpers.NavHelper;
 import org.projecthaystack.*;
 import org.projecthaystack.client.HClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.vertx.java.core.Handler;
 
 import java.util.*;
@@ -24,6 +26,8 @@ import java.util.concurrent.TimeUnit;
  */
 public class Haystack {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(Haystack.class);
+
     private final Map<String, Node> subs;
     private final NavHelper helper;
     private final Node node;
@@ -31,8 +35,7 @@ public class Haystack {
     private final ScheduledThreadPoolExecutor stpe;
     private ScheduledFuture<?> pollFuture;
     private ConnectionHelper conn;
-
-    private HWatch watch;
+    private boolean watchEnabled;
 
     public Haystack(final Node node) {
         node.setRoConfig("lu", new Value(0));
@@ -44,11 +47,10 @@ public class Haystack {
         this.node = node;
         this.subs = new ConcurrentHashMap<>();
         this.helper = new NavHelper(this);
-        this.conn = new ConnectionHelper(node, new Handler<HWatch>() {
+        this.conn = new ConnectionHelper(node, new Handler<Void>() {
             @Override
-            public void handle(HWatch event) {
-                watch = event;
-
+            public void handle(Void event) {
+                watchEnabled = true;
                 if (!subs.isEmpty()) {
                     // Restore haystack subscriptions
                     for (Map.Entry<String, Node> entry : subs.entrySet()) {
@@ -63,9 +65,9 @@ public class Haystack {
         }, new Handler<Void>() {
             @Override
             public void handle(Void event) {
+                watchEnabled = false;
                 pollFuture.cancel(false);
                 pollFuture = null;
-                watch = null;
             }
         });
         // Ensure subscriptions are subscribed
@@ -140,36 +142,30 @@ public class Haystack {
     }
 
     private void subscribe(final HRef id, Node node, boolean add) {
-        if (watch == null) {
+        if (!watchEnabled) {
             return;
         }
         if (add) {
             subs.put(id.toString(), node);
         }
 
-        conn.getClient(new Handler<HClient>() {
+        conn.getWatch(new Handler<HWatch>() {
             @Override
-            public void handle(HClient event) {
-                HWatch watch = Haystack.this.watch;
-                if (watch != null) {
-                    watch.sub(new HRef[]{id});
-                }
+            public void handle(HWatch event) {
+                event.sub(new HRef[]{id});
             }
         });
     }
 
     public void unsubscribe(final HRef id) {
-        if (watch == null) {
+        if (!watchEnabled) {
             return;
         }
         subs.remove(id.toString());
-        conn.getClient(new Handler<HClient>() {
+        conn.getWatch(new Handler<HWatch>() {
             @Override
-            public void handle(HClient event) {
-                HWatch watch = Haystack.this.watch;
-                if (watch != null) {
-                    watch.unsub(new HRef[]{id});
-                }
+            public void handle(HWatch event) {
+                event.unsub(new HRef[]{id});
             }
         });
     }
@@ -182,7 +178,6 @@ public class Haystack {
             }
         }
 
-        watch = null;
         conn.close();
     }
 
@@ -204,70 +199,72 @@ public class Haystack {
                 try {
                     poll();
                 } catch (Exception e) {
-                    pollFuture.cancel(false);
-                    pollFuture = null;
-                    watch = null;
+                    LOGGER.error("", e);
                 }
             }
         }, time, time, TimeUnit.SECONDS);
     }
 
     private void poll() {
-        HWatch watch = this.watch;
-        if (watch == null || subs.isEmpty()) {
+        if (!watchEnabled || subs.isEmpty()) {
             return;
         }
 
-        HGrid grid = watch.pollChanges();
-        if (grid == null) {
-            return;
-        }
-
-        Iterator it = grid.iterator();
-        while (it.hasNext()) {
-            HRow row = (HRow) it.next();
-            Node node = subs.get(row.id().toString());
-            if (node != null) {
-                Map<String, Node> children = node.getChildren();
-                List<String> remove = null;
-                if (children != null) {
-                    remove = new ArrayList<>(children.keySet());
+        conn.getWatch(new Handler<HWatch>() {
+            @Override
+            public void handle(HWatch event) {
+                HGrid grid = event.pollChanges();
+                if (grid == null) {
+                    return;
                 }
 
-                Iterator rowIt = row.iterator();
-                while (rowIt.hasNext()) {
-                    Map.Entry entry = (Map.Entry) rowIt.next();
-                    String name = (String) entry.getKey();
-                    HVal val = (HVal) entry.getValue();
-                    Value value = Utils.hvalToVal(val);
+                Iterator it = grid.iterator();
+                while (it.hasNext()) {
+                    HRow row = (HRow) it.next();
+                    Node node = subs.get(row.id().toString());
+                    if (node != null) {
+                        Map<String, Node> children = node.getChildren();
+                        List<String> remove = null;
+                        if (children != null) {
+                            remove = new ArrayList<>(children.keySet());
+                        }
 
-                    String encoded = StringUtils.encodeName(name);
-                    Node child = null;
-                    if (children != null) {
-                        child = children.get(encoded);
-                    }
-                    if (child != null) {
-                        child.setValueType(value.getType());
-                        child.setValue(value);
-                    } else {
-                        NodeBuilder b = node.createChild(encoded);
-                        b.setValueType(value.getType());
-                        b.setValue(value);
-                        Node n = b.build();
-                        n.setSerializable(false);
-                    }
-                    if (remove != null) {
-                        remove.remove(encoded);
-                    }
-                }
+                        Iterator rowIt = row.iterator();
+                        while (rowIt.hasNext()) {
+                            Map.Entry entry = (Map.Entry) rowIt.next();
+                            String name = (String) entry.getKey();
+                            HVal val = (HVal) entry.getValue();
+                            Value value = Utils.hvalToVal(val);
 
-                if (remove != null) {
-                    for (String s : remove) {
-                        node.removeChild(s);
+                            String encoded = StringUtils.encodeName(name);
+                            Node child = null;
+                            if (children != null) {
+                                child = children.get(encoded);
+                            }
+                            if (child != null) {
+                                child.setValueType(value.getType());
+                                child.setValue(value);
+                            } else {
+                                NodeBuilder b = node.createChild(encoded);
+                                b.setValueType(value.getType());
+                                b.setValue(value);
+                                Node n = b.build();
+                                n.setSerializable(false);
+                            }
+                            if (remove != null) {
+                                remove.remove(encoded);
+                            }
+                        }
+
+                        if (remove != null) {
+                            for (String s : remove) {
+                                node.removeChild(s);
+                            }
+                        }
                     }
                 }
             }
-        }
+        });
     }
 
     public static void init(Node superRoot) {

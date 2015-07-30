@@ -29,7 +29,7 @@ public class ConnectionHelper {
     private final Queue<Handler<HClient>> queue = new ConcurrentLinkedQueue<>();
     private final Object lock = new Object();
 
-    private final Handler<HWatch> watchEnabled;
+    private final Handler<Void> watchEnabled;
     private final Handler<Void> watchDisabled;
 
     private volatile String username;
@@ -41,7 +41,7 @@ public class ConnectionHelper {
     private HWatch watch;
 
     public ConnectionHelper(Node node,
-                            Handler<HWatch> watchEnabled,
+                            Handler<Void> watchEnabled,
                             Handler<Void> watchDisabled) {
         this.watchEnabled = watchEnabled;
         this.watchDisabled = watchDisabled;
@@ -78,6 +78,38 @@ public class ConnectionHelper {
             }
 
             client = null;
+        }
+    }
+
+    public void getWatch(final Handler<HWatch> onWatchReceived) {
+        try {
+            synchronized (lock) {
+                if (watch == null) {
+                    getClient(new Handler<HClient>() {
+                        @Override
+                        public void handle(HClient event) {
+                            synchronized (lock) {
+                                if (watch != null) {
+                                    return;
+                                }
+                                String id = "DSLink Haystack";
+                                watch = client.watchOpen(id, null);
+                                if (watchEnabled != null) {
+                                    watchEnabled.handle(null);
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    onWatchReceived.handle(watch);
+                }
+            }
+        } catch (Exception e) {
+            if (e instanceof CallNetworkException) {
+                close();
+            } else {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -145,7 +177,7 @@ public class ConnectionHelper {
                         boolean supportsWatch = ops.contains("watchSub");
                         if (supportsWatch) {
                             watch = client.watchOpen("DSLink Haystack", null);
-                            watchEnabled.handle(watch);
+                            watchEnabled.handle(null);
                         } else {
                             watchDisabled.handle(null);
                             LOGGER.warn("watchSub disabled for {}", url);
