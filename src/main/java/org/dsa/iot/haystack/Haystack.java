@@ -46,7 +46,6 @@ public class Haystack {
             public void handle(HWatch event) {
                 watch = event;
 
-                // on watch enabled
                 if (!subs.isEmpty()) {
                     // Restore haystack subscriptions
                     for (Map.Entry<String, Node> entry : subs.entrySet()) {
@@ -77,7 +76,6 @@ public class Haystack {
         }, new Handler<Void>() {
             @Override
             public void handle(Void event) {
-                // on watch disabled
                 pollFuture.cancel(false);
                 pollFuture = null;
                 watch = null;
@@ -219,7 +217,10 @@ public class Haystack {
             Node node = subs.get(row.id().toString());
             if (node != null) {
                 Map<String, Node> children = node.getChildren();
-                List<String> remove = new ArrayList<>(children.keySet());
+                List<String> remove = null;
+                if (children != null) {
+                    remove = new ArrayList<>(children.keySet());
+                }
 
                 Iterator rowIt = row.iterator();
                 while (rowIt.hasNext()) {
@@ -229,7 +230,10 @@ public class Haystack {
                     Value value = Utils.hvalToVal(val);
 
                     String encoded = StringUtils.encodeName(name);
-                    Node child = children.get(encoded);
+                    Node child = null;
+                    if (children != null) {
+                        child = children.get(encoded);
+                    }
                     if (child != null) {
                         child.setValueType(value.getType());
                         child.setValue(value);
@@ -240,11 +244,15 @@ public class Haystack {
                         Node n = b.build();
                         n.setSerializable(false);
                     }
-                    remove.remove(encoded);
+                    if (remove != null) {
+                        remove.remove(encoded);
+                    }
                 }
 
-                for (String s : remove) {
-                    node.removeChild(s);
+                if (remove != null) {
+                    for (String s : remove) {
+                        node.removeChild(s);
+                    }
                 }
             }
         }

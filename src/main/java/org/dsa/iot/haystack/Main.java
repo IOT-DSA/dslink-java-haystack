@@ -4,6 +4,9 @@ import org.dsa.iot.dslink.DSLink;
 import org.dsa.iot.dslink.DSLinkFactory;
 import org.dsa.iot.dslink.DSLinkHandler;
 import org.dsa.iot.dslink.node.Node;
+import org.dsa.iot.dslink.node.NodeManager;
+import org.dsa.iot.dslink.util.StringUtils;
+import org.projecthaystack.HRef;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +49,25 @@ public class Main extends DSLinkHandler {
 
         Node superRoot = link.getNodeManager().getSuperRoot();
         Haystack.init(superRoot);
+    }
+
+    @Override
+    public Node onSubscriptionFail(String path) {
+        NodeManager manager = link.getNodeManager();
+        String[] split = NodeManager.splitPath(path);
+
+        Node node = manager.getNode(path, true).getNode();
+        HRef id;
+        {
+            String sID = split[split.length - 2];
+            sID = StringUtils.decodeName(sID);
+            id = HRef.make(sID);
+        }
+
+        Node superRoot = manager.getSuperRoot();
+        Haystack haystack = superRoot.getChild(split[0]).getMetaData();
+        haystack.subscribe(id, node.getParent());
+        return node;
     }
 
     public static void main(String[] args) {
