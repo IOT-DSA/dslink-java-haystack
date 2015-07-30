@@ -51,9 +51,9 @@ public class Actions {
             a.addParameter(p);
         }
         {
-            Value def = new Value(5000);
+            Value def = new Value(5);
             Parameter p = new Parameter("Poll Rate", ValueType.NUMBER, def);
-            p.setDescription("Poll Rate is in milliseconds.");
+            p.setDescription("Poll Rate is in seconds.");
             a.addParameter(p);
         }
         a.setResultType(ResultType.STREAM);

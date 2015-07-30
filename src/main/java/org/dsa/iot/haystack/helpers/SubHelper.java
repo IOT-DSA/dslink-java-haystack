@@ -84,7 +84,7 @@ public class SubHelper {
                             }
                         }
                     }
-                }, 0, pollRate, TimeUnit.MILLISECONDS);
+                }, 0, pollRate, TimeUnit.SECONDS);
             }
         });
         try {

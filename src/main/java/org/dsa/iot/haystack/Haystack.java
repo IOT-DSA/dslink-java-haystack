@@ -34,9 +34,12 @@ public class Haystack {
 
     private HWatch watch;
 
-    public Haystack(Node node) {
+    public Haystack(final Node node) {
         node.setRoConfig("lu", new Value(0));
         node.setMetaData(this);
+        if (node.getConfig("pr") == null) {
+            node.setConfig("pr", new Value(5));
+        }
         this.stpe = Objects.createDaemonThreadPool();
         this.node = node;
         this.subs = new ConcurrentHashMap<>();
@@ -55,23 +58,7 @@ public class Haystack {
                     }
                 }
 
-                if (pollFuture != null) {
-                    pollFuture.cancel(false);
-                    pollFuture = null;
-                }
-
-                pollFuture = stpe.scheduleWithFixedDelay(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            poll();
-                        } catch (Exception e) {
-                            pollFuture.cancel(false);
-                            pollFuture = null;
-                            watch = null;
-                        }
-                    }
-                }, 5, 5, TimeUnit.SECONDS);
+                setupPoll(node.getConfig("pr").getNumber().intValue());
             }
         }, new Handler<Void>() {
             @Override
@@ -85,8 +72,13 @@ public class Haystack {
         conn.getClient(null);
     }
 
-    public void editConnection(String url, String user, String pass) {
+    public void editConnection(String url,
+                               String user,
+                               String pass,
+                               int pollRate) {
         conn.editConnection(url, user, pass);
+        setupPoll(pollRate);
+
         Action a = ServerActions.getEditAction(node);
         node.getChild("editServer").setAction(a);
     }
@@ -198,6 +190,26 @@ public class Haystack {
         stop();
         stpe.shutdownNow();
         helper.destroy();
+    }
+
+    private void setupPoll(int time) {
+        if (pollFuture != null) {
+            pollFuture.cancel(false);
+            pollFuture = null;
+        }
+
+        pollFuture = stpe.scheduleWithFixedDelay(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    poll();
+                } catch (Exception e) {
+                    pollFuture.cancel(false);
+                    pollFuture = null;
+                    watch = null;
+                }
+            }
+        }, time, time, TimeUnit.SECONDS);
     }
 
     private void poll() {

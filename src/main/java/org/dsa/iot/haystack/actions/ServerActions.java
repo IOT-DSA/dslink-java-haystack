@@ -75,9 +75,10 @@ public class ServerActions {
             public void handle(ActionResult event) {
                 Haystack haystack = node.getMetaData();
 
-                Value vUrl = event.getParameter("url", ValueType.STRING);
-                Value vUser = event.getParameter("username", ValueType.STRING);
-                Value vPass = event.getParameter("password");
+                Value vUrl = event.getParameter("URL", ValueType.STRING);
+                Value vUser = event.getParameter("Username", ValueType.STRING);
+                Value vPass = event.getParameter("Password");
+                Value vPR = event.getParameter("Poll Rate", ValueType.NUMBER);
 
                 String url = vUrl.getString();
                 String user = vUser.getString();
@@ -89,23 +90,37 @@ public class ServerActions {
                     node.setPassword(pass.toCharArray());
                 }
 
-                haystack.editConnection(url, user, pass);
+                if (vPR.getNumber().intValue() < 1) {
+                    vPR.set(1);
+                }
+                node.setConfig("pr", vPR);
+                int pollRate = vPR.getNumber().intValue();
+
+                haystack.editConnection(url, user, pass, pollRate);
             }
         });
         {
-            Parameter p = new Parameter("url", ValueType.STRING);
+            Parameter p = new Parameter("URL", ValueType.STRING);
             p.setDefaultValue(node.getConfig("url"));
             a.addParameter(p);
         }
         {
-            Parameter p = new Parameter("username", ValueType.STRING);
+            Parameter p = new Parameter("Username", ValueType.STRING);
             p.setDefaultValue(node.getConfig("username"));
             a.addParameter(p);
         }
         {
-            Parameter p = new Parameter("password", ValueType.STRING);
+            Parameter p = new Parameter("Password", ValueType.STRING);
             p.setDescription("Leave blank to leave password unchanged");
             p.setEditorType(EditorType.PASSWORD);
+            a.addParameter(p);
+        }
+        {
+            Parameter p = new Parameter("Poll Rate", ValueType.NUMBER);
+            String desc = "How often the Haystack server should be polled ";
+            desc += "changes";
+            p.setDescription(desc);
+            p.setDefaultValue(node.getConfig("pr"));
             a.addParameter(p);
         }
         return a;
