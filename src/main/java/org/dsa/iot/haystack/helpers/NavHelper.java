@@ -315,7 +315,7 @@ public class NavHelper {
         if (id != null) {
             return StringUtils.encodeName(row.id().val);
         }
-        return null;
+        return row.dis();
     }
 
     static {
