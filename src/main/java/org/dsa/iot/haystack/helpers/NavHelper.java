@@ -1,5 +1,6 @@
 package org.dsa.iot.haystack.helpers;
 
+import org.dsa.iot.dslink.link.Linkable;
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.NodeBuilder;
 import org.dsa.iot.dslink.node.NodeListener;
@@ -293,6 +294,16 @@ public class NavHelper {
             listener.setOnUnsubscribeHandler(new Handler<Node>() {
                 @Override
                 public void handle(Node event) {
+                    Linkable link = event.getLink();
+                    SubscriptionManager man = link.getSubscriptionManager();
+                    Map<String, Node> children = event.getParent().getChildren();
+                    if (children != null) {
+                        for (Node n : children.values()) {
+                            if (man.hasValueSub(n)) {
+                                return;
+                            }
+                        }
+                    }
                     haystack.unsubscribe((HRef) id);
                 }
             });
