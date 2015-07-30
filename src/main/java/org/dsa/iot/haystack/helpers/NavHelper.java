@@ -63,7 +63,6 @@ public class NavHelper {
                         continue;
                     }
                     removeNodes(n);
-                    LOGGER.debug("Removed: {}", n.getPath());
                 }
             }
         };
@@ -83,6 +82,7 @@ public class NavHelper {
             }
         }
         if (!man.hasValueSub(node)) {
+            LOGGER.debug("Removed: {}", node.getPath());
             node.getParent().removeChild(node);
         }
     }
@@ -169,14 +169,21 @@ public class NavHelper {
             }
             builder.setDisplayName(row.dis());
 
+            final Node child = builder.build();
+            child.setSerializable(false);
+
             // Handle writable
-            HVal writable = row.get("writable", false);
+            final HVal writable = row.get("writable", false);
             if (writable instanceof HMarker) {
                 HRef id = row.id();
-                NodeBuilder b = builder.getChild().createChild("pointWrite");
+                NodeBuilder b = child.createChild("pointWrite");
                 b.setDisplayName("Point Write");
                 b.setSerializable(false);
-                b.setAction(Actions.getPointWriteAction(haystack, id));
+
+                HVal hKind = row.get("kind", false);
+                String kind = hKind.toString();
+
+                b.setAction(Actions.getPointWriteAction(haystack, id, kind));
                 b.build();
             }
 
@@ -191,15 +198,11 @@ public class NavHelper {
                 HGrid grid = reader.readGrid();
                 Iterator it = grid.iterator();
                 HRef id = row.id();
-                Node child = builder.getChild();
                 while (it.hasNext()) {
                     HRow r = (HRow) it.next();
                     InvokeActions.handleAction(haystack, id, child, r);
                 }
             }
-
-            final Node child = builder.build();
-            child.setSerializable(false);
 
             // Handle navId
             if (navId != null) {
@@ -222,7 +225,8 @@ public class NavHelper {
                             if (LOGGER.isDebugEnabled()) {
                                 StringWriter writer = new StringWriter();
                                 nav.dump(new PrintWriter(writer));
-                                LOGGER.debug("Received nav: {}", writer.toString());
+                                String s = writer.toString();
+                                LOGGER.debug("Received nav: {}", s);
                             }
 
                             if (children != null) {
@@ -230,21 +234,23 @@ public class NavHelper {
                                 while (childrenIt.hasNext()) {
                                     final HRow childRow = (HRow) childrenIt.next();
                                     final String childName = getName(childRow);
-                                    if (childName != null) {
-                                        NodeBuilder b = child.createChild(childName);
-                                        b.setDisplayName(childRow.dis());
-                                        b.getChild().setSerializable(false);
-                                        HVal navId = childRow.get("navId", false);
-                                        if (navId != null) {
-                                            String id = navId.toString();
-                                            Handler<Node> navHandler = getNavHandler(id);
-                                            b.setHasChildren(true);
-                                            b.setRoConfig("navId", new Value(id));
-                                            b.getListener().setOnListClosedHandler(closedHandler);
-                                            b.getListener().setOnListHandler(navHandler);
-                                        }
-                                        iterateRow(b.build(), childRow);
+                                    if (childName == null) {
+                                        continue;
                                     }
+                                    NodeBuilder b = child.createChild(childName);
+                                    b.setDisplayName(childRow.dis());
+                                    b.getChild().setSerializable(false);
+                                    HVal navId = childRow.get("navId", false);
+                                    if (navId != null) {
+                                        String id = navId.toString();
+                                        Handler<Node> navHandler = getNavHandler(id);
+                                        b.setHasChildren(true);
+                                        b.setRoConfig("navId", new Value(id));
+                                        NodeListener listener = b.getListener();
+                                        listener.setOnListClosedHandler(closedHandler);
+                                        listener.setOnListHandler(navHandler);
+                                    }
+                                    iterateRow(b.build(), childRow);
                                 }
                             }
                         }
@@ -278,36 +284,37 @@ public class NavHelper {
 
     private void handleRowValSubs(final Node node, HRow row) {
         final HVal id = row.get("id", false);
-        if (id != null) {
-            Node child = node.createChild("id").build();
-            Value val = Utils.hvalToVal(id);
-            child.setValueType(val.getType());
-            child.setValue(val);
-            NodeListener listener = child.getListener();
-            listener.setOnSubscribeHandler(new Handler<Node>() {
-                @Override
-                public void handle(Node event) {
-                    haystack.subscribe((HRef) id, node);
-                }
-            });
+        if (id == null) {
+            return;
+        }
+        Node child = node.createChild("id").build();
+        Value val = Utils.hvalToVal(id);
+        child.setValueType(val.getType());
+        child.setValue(val);
+        NodeListener listener = child.getListener();
+        listener.setOnSubscribeHandler(new Handler<Node>() {
+            @Override
+            public void handle(Node event) {
+                haystack.subscribe((HRef) id, node);
+            }
+        });
 
-            listener.setOnUnsubscribeHandler(new Handler<Node>() {
-                @Override
-                public void handle(Node event) {
-                    Linkable link = event.getLink();
-                    SubscriptionManager man = link.getSubscriptionManager();
-                    Map<String, Node> children = event.getParent().getChildren();
-                    if (children != null) {
-                        for (Node n : children.values()) {
-                            if (man.hasValueSub(n)) {
-                                return;
-                            }
+        listener.setOnUnsubscribeHandler(new Handler<Node>() {
+            @Override
+            public void handle(Node event) {
+                Linkable link = event.getLink();
+                SubscriptionManager man = link.getSubscriptionManager();
+                Map<String, Node> children = event.getParent().getChildren();
+                if (children != null) {
+                    for (Node n : children.values()) {
+                        if (man.hasValueSub(n)) {
+                            return;
                         }
                     }
-                    haystack.unsubscribe((HRef) id);
                 }
-            });
-        }
+                haystack.unsubscribe((HRef) id);
+            }
+        });
     }
 
     private String getName(HRow row) {

@@ -61,11 +61,12 @@ public class Actions {
     }
 
     public static Action getPointWriteAction(Haystack haystack) {
-        return getPointWriteAction(haystack, null);
+        return getPointWriteAction(haystack, null, null);
     }
 
     public static Action getPointWriteAction(final Haystack haystack,
-                                             final HRef treeId) {
+                                             final HRef treeId,
+                                             final String kind) {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(final ActionResult event) {
@@ -94,12 +95,16 @@ public class Actions {
 
                         HVal val = null;
                         if (vValue != null) {
-                            if (vVT == null) {
+                            String type;
+                            if (kind != null) {
+                                type = kind.toLowerCase();
+                            } else if (vVT != null) {
+                                type = vVT.getString();
+                            } else {
                                 String err = "Missing value type";
                                 throw new RuntimeException(err);
                             }
                             String stringVal = vValue.getString();
-                            String type = vVT.getString();
                             switch (type) {
                                 case "bool":
                                     boolean b = Boolean.parseBoolean(stringVal);
@@ -165,24 +170,13 @@ public class Actions {
             a.addParameter(p);
         }
         {
-            String[] enums = new String[17];
-            for (int i = 0; i < enums.length; ++i) {
-                enums[i] = String.valueOf(i + 1);
-            }
-            ValueType type = ValueType.makeEnum(enums);
-            Parameter p = new Parameter("Level", type);
-            p.setDescription("Number from 1-17 for level to write.");
-            p.setDefaultValue(new Value("17"));
-            a.addParameter(p);
-        }
-        {
             Parameter p = new Parameter("Value", ValueType.STRING);
             String msg = "Value to write or none to set the level ";
             msg += "back to auto.";
             p.setDescription(msg);
             a.addParameter(p);
         }
-        {
+        if (kind == null) {
 
             ValueType type = Utils.getHaystackTypes();
             Parameter p = new Parameter("Value Type", type);
@@ -194,6 +188,17 @@ public class Actions {
 
             Parameter p = new Parameter("Value Unit", ValueType.STRING);
             p.setDescription("Value unit, only affects number types.");
+            a.addParameter(p);
+        }
+        {
+            String[] enums = new String[17];
+            for (int i = 0; i < enums.length; ++i) {
+                enums[i] = String.valueOf(i + 1);
+            }
+            ValueType type = ValueType.makeEnum(enums);
+            Parameter p = new Parameter("Level", type);
+            p.setDescription("Number from 1-17 for level to write.");
+            p.setDefaultValue(new Value("17"));
             a.addParameter(p);
         }
         {

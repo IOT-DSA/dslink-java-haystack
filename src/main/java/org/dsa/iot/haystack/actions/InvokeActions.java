@@ -13,10 +13,7 @@ import org.dsa.iot.dslink.node.value.ValueUtils;
 import org.dsa.iot.dslink.util.StringUtils;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
-import org.projecthaystack.HDictBuilder;
-import org.projecthaystack.HGrid;
-import org.projecthaystack.HRef;
-import org.projecthaystack.HRow;
+import org.projecthaystack.*;
 import org.projecthaystack.client.HClient;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.json.JsonObject;
@@ -72,6 +69,7 @@ public class InvokeActions {
         for (Parameter p : params) {
             a.addParameter(p);
         }
+        a.setResultType(ResultType.TABLE);
         return a;
     }
 
@@ -139,7 +137,7 @@ public class InvokeActions {
     public static void handleAction(Haystack haystack,
                                     HRef id,
                                     Node node,
-                                    HRow row) {
+                                    HDict row) {
         String dis = row.dis();
         String expr = row.getStr("expr");
 
@@ -162,7 +160,7 @@ public class InvokeActions {
             params.add(p);
         }
 
-        dis = StringUtils.filterBannedChars(dis);
+        dis = StringUtils.encodeName(dis);
         NodeBuilder b = node.createChild(dis);
         b.setSerializable(false);
         b.setAction(getInvokeAction(haystack, id, dis, params));
