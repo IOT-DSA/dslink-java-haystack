@@ -340,9 +340,15 @@ public class Actions {
                 while (it.hasNext()) {
                     Map.Entry entry = (Map.Entry) it.next();
                     String name = (String) entry.getKey();
-                    HVal val = (HVal) entry.getValue();
-                    Value value = Utils.hvalToVal(val);
-                    ValueUtils.toJson(metaObj, name, value);
+                    if (name != null) {
+                        HVal val = (HVal) entry.getValue();
+                        Value value = Utils.hvalToVal(val);
+                        if (value != null) {
+                            ValueUtils.toJson(metaObj, name, value);
+                        } else {
+                            metaObj.putString(name, null);
+                        }
+                    }
                 }
                 t.setTableMeta(metaObj);
             }
@@ -359,9 +365,15 @@ public class Actions {
                 while (it.hasNext()) {
                     Map.Entry entry = (Map.Entry) it.next();
                     String name = (String) entry.getKey();
-                    HVal val = (HVal) entry.getValue();
-                    Value value = Utils.hvalToVal(val);
-                    ValueUtils.toJson(metaObj, name, value);
+                    if (name != null) {
+                        HVal val = (HVal) entry.getValue();
+                        Value value = Utils.hvalToVal(val);
+                        if (value != null) {
+                            ValueUtils.toJson(metaObj, name, value);
+                        } else {
+                            metaObj.putString(name, null);
+                        }
+                    }
                 }
                 p.setMetaData(metaObj);
             }
