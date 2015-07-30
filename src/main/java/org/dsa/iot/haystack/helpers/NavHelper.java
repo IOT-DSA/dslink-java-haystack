@@ -142,11 +142,12 @@ public class NavHelper {
             }
 
             // Handle child
-            HVal navId = row.get("navId", false);
             final NodeBuilder builder = node.createChild(name);
+            HVal navId = row.get("navId", false);
             if (navId != null) {
                 builder.setHasChildren(true);
             }
+            builder.setDisplayName(row.dis());
 
             // Handle writable
             HVal writable = row.get("writable", false);
@@ -211,6 +212,7 @@ public class NavHelper {
                                     final String childName = getName(childRow);
                                     if (childName != null) {
                                         NodeBuilder b = child.createChild(childName);
+                                        b.setDisplayName(childRow.dis());
                                         b.getChild().setSerializable(false);
                                         HVal navId = childRow.get("navId", false);
                                         if (navId != null) {
@@ -279,11 +281,7 @@ public class NavHelper {
     }
 
     private String getName(HRow row) {
-        String name = StringUtils.filterBannedChars(row.dis());
-        if (name.isEmpty() || "????".equals(name)) {
-            return null;
-        }
-        return name;
+        return StringUtils.encodeName(row.id().val);
     }
 
     static {
