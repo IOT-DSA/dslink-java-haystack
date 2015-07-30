@@ -311,7 +311,11 @@ public class NavHelper {
     }
 
     private String getName(HRow row) {
-        return StringUtils.encodeName(row.id().val);
+        HRef id = (HRef) row.get("id", false);
+        if (id != null) {
+            return StringUtils.encodeName(row.id().val);
+        }
+        return null;
     }
 
     static {
