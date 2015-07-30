@@ -44,6 +44,8 @@ public class Haystack {
         this.conn = new ConnectionHelper(node, new Handler<HWatch>() {
             @Override
             public void handle(HWatch event) {
+                watch = event;
+
                 // on watch enabled
                 if (!subs.isEmpty()) {
                     // Restore haystack subscriptions
@@ -226,19 +228,19 @@ public class Haystack {
                     HVal val = (HVal) entry.getValue();
                     Value value = Utils.hvalToVal(val);
 
-                    String filtered = StringUtils.filterBannedChars(name);
-                    Node child = children.get(filtered);
+                    String encoded = StringUtils.encodeName(name);
+                    Node child = children.get(encoded);
                     if (child != null) {
                         child.setValueType(value.getType());
                         child.setValue(value);
                     } else {
-                        NodeBuilder b = node.createChild(filtered);
+                        NodeBuilder b = node.createChild(encoded);
                         b.setValueType(value.getType());
                         b.setValue(value);
                         Node n = b.build();
                         n.setSerializable(false);
                     }
-                    remove.remove(filtered);
+                    remove.remove(encoded);
                 }
 
                 for (String s : remove) {

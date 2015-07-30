@@ -3,6 +3,7 @@ package org.dsa.iot.haystack.helpers;
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.NodeBuilder;
 import org.dsa.iot.dslink.node.NodeListener;
+import org.dsa.iot.dslink.node.SubscriptionManager;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.util.Objects;
 import org.dsa.iot.dslink.util.StringUtils;
@@ -60,11 +61,29 @@ public class NavHelper {
                                 && n.getAction() == null)) {
                         continue;
                     }
-                    event.removeChild(n);
+                    removeNodes(n);
                     LOGGER.debug("Removed: {}", n.getPath());
                 }
             }
         };
+    }
+
+    private void removeNodes(Node node) {
+        if (node == null) {
+            return;
+        }
+        SubscriptionManager man = node.getLink().getSubscriptionManager();
+        Map<String, Node> children = node.getChildren();
+        if (children != null) {
+            for (Node n : children.values()) {
+                if (n != null) {
+                    removeNodes(node);
+                }
+            }
+        }
+        if (!man.hasValueSub(node)) {
+            node.getParent().removeChild(node);
+        }
     }
 
     public Handler<Node> getNavHandler(final String navId) {
