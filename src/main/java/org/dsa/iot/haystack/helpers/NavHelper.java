@@ -312,10 +312,13 @@ public class NavHelper {
 
     private String getName(HRow row) {
         HRef id = (HRef) row.get("id", false);
+        String name;
         if (id != null) {
-            return StringUtils.encodeName(row.id().val);
+            name = id.val;
+        } else {
+            name = row.dis();
         }
-        return row.dis();
+        return StringUtils.encodeName(name);
     }
 
     static {
