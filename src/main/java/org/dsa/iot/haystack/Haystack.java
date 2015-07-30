@@ -87,7 +87,7 @@ public class Haystack {
 
     public void editConnection(String url, String user, String pass) {
         conn.editConnection(url, user, pass);
-        Action a = ServerActions.getEditServerAction(node);
+        Action a = ServerActions.getEditAction(node);
         node.getChild("editServer").setAction(a);
     }
 

@@ -69,7 +69,7 @@ public class ServerActions {
         });
     }
 
-    public static Action getEditServerAction(final Node node) {
+    public static Action getEditAction(final Node node) {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(ActionResult event) {
@@ -86,7 +86,7 @@ public class ServerActions {
                 node.setConfig("url", vUrl);
                 node.setConfig("username", vUser);
                 if (vPass != null) {
-                    node.setConfig("vPass", new Value(pass));
+                    node.setPassword(pass.toCharArray());
                 }
 
                 haystack.editConnection(url, user, pass);

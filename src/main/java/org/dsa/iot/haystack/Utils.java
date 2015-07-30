@@ -94,7 +94,7 @@ public class Utils {
 
         NodeBuilder editServer = node.createChild("editServer");
         editServer.setDisplayName("Edit Server");
-        editServer.setAction(ServerActions.getEditServerAction(node));
+        editServer.setAction(ServerActions.getEditAction(node));
         editServer.setSerializable(false);
         editServer.build();
 
