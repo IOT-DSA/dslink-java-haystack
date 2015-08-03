@@ -131,15 +131,16 @@ public class NavHelper {
                                     grid, new Handler<HGrid>() {
                                 @Override
                                 public void handle(HGrid nav) {
-                                    if (nav != null) {
-                                        if (LOGGER.isDebugEnabled()) {
-                                            StringWriter writer = new StringWriter();
-                                            nav.dump(new PrintWriter(writer));
-                                            String n = writer.toString();
-                                            LOGGER.debug("Received nav: {}", n);
-                                        }
-                                        iterateNavChildren(nav, event);
+                                    if (nav == null) {
+                                        return;
                                     }
+                                    if (LOGGER.isDebugEnabled()) {
+                                        StringWriter writer = new StringWriter();
+                                        nav.dump(new PrintWriter(writer));
+                                        String n = writer.toString();
+                                        LOGGER.debug("Received nav: {}", n);
+                                    }
+                                    iterateNavChildren(nav, event);
                                 }
                             });
                         } catch (Exception e) {
@@ -211,8 +212,9 @@ public class NavHelper {
 
                 final Handler<Node> closedHandler = getClosedHandler();
                 Handler<Node> navHandler = getNavHandler(id);
-                child.getListener().setOnListClosedHandler(closedHandler);
-                child.getListener().setOnListHandler(navHandler);
+                NodeListener listener = child.getListener();
+                listener.setOnListClosedHandler(closedHandler);
+                listener.setOnListHandler(navHandler);
 
                 HGridBuilder hGridBuilder = new HGridBuilder();
                 hGridBuilder.addCol("navId");

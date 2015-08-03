@@ -147,7 +147,10 @@ public class Main extends DSLinkHandler {
                             Node node = manager.getNode(parent, true).getNode();
                             InvokeActions.handleAction(haystack, id, node, r);
                             doThrow = false;
-                            container.node = node;
+
+                            String name = split[split.length - 1];
+                            name = StringUtils.encodeName(name);
+                            container.node = node.getChild(name);
                             break;
                         }
                         if (doThrow) {
