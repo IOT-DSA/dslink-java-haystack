@@ -29,7 +29,7 @@ public class Haystack {
     private static final Logger LOGGER = LoggerFactory.getLogger(Haystack.class);
 
     private final Map<String, Node> subs;
-    private final NavHelper helper;
+    private final NavHelper navHelper;
     private final Node node;
 
     private final ScheduledThreadPoolExecutor stpe;
@@ -46,7 +46,7 @@ public class Haystack {
         this.stpe = Objects.createDaemonThreadPool();
         this.node = node;
         this.subs = new ConcurrentHashMap<>();
-        this.helper = new NavHelper(this);
+        this.navHelper = new NavHelper(this);
         this.conn = new ConnectionHelper(node, new Handler<Void>() {
             @Override
             public void handle(Void event) {
@@ -134,7 +134,7 @@ public class Haystack {
     }
 
     public NavHelper getNavHelper() {
-        return helper;
+        return navHelper;
     }
 
     public void subscribe(HRef id, Node node) {
@@ -184,7 +184,7 @@ public class Haystack {
     void destroy() {
         stop();
         stpe.shutdownNow();
-        helper.destroy();
+        navHelper.destroy();
     }
 
     private void setupPoll(int time) {

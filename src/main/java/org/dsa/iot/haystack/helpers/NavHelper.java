@@ -46,7 +46,7 @@ public class NavHelper {
         stpe.shutdownNow();
     }
 
-    Handler<Node> getClosedHandler() {
+    public Handler<Node> getClosedHandler() {
         return new Handler<Node>() {
             @Override
             public void handle(Node event) {
@@ -66,25 +66,6 @@ public class NavHelper {
                 }
             }
         };
-    }
-
-    private void removeNodes(Node node) {
-        if (node == null) {
-            return;
-        }
-        SubscriptionManager man = node.getLink().getSubscriptionManager();
-        Map<String, Node> children = node.getChildren();
-        if (children != null) {
-            for (Node n : children.values()) {
-                if (n != null) {
-                    removeNodes(node);
-                }
-            }
-        }
-        if (!man.hasValueSub(node)) {
-            LOGGER.debug("Removed: {}", node.getPath());
-            node.getParent().removeChild(node);
-        }
     }
 
     public Handler<Node> getNavHandler(final String navId) {
@@ -216,53 +197,59 @@ public class NavHelper {
                 listener.setOnListClosedHandler(closedHandler);
                 listener.setOnListHandler(navHandler);
 
-                HGridBuilder hGridBuilder = new HGridBuilder();
-                hGridBuilder.addCol("navId");
-                hGridBuilder.addRow(new HVal[]{navId});
-                HGrid grid = hGridBuilder.toGrid();
-                try {
-                    haystack.call("nav", grid, new Handler<HGrid>() {
-                        @Override
-                        public void handle(HGrid children) {
-                            if (LOGGER.isDebugEnabled()) {
-                                StringWriter writer = new StringWriter();
-                                nav.dump(new PrintWriter(writer));
-                                String s = writer.toString();
-                                LOGGER.debug("Received nav: {}", s);
-                            }
-
-                            if (children != null) {
-                                Iterator childrenIt = children.iterator();
-                                while (childrenIt.hasNext()) {
-                                    final HRow childRow = (HRow) childrenIt.next();
-                                    final String childName = getName(childRow);
-                                    if (childName == null) {
-                                        continue;
-                                    }
-                                    NodeBuilder b = child.createChild(childName);
-                                    b.setDisplayName(childRow.dis());
-                                    b.getChild().setSerializable(false);
-                                    HVal navId = childRow.get("navId", false);
-                                    if (navId != null) {
-                                        String id = navId.toString();
-                                        Handler<Node> navHandler = getNavHandler(id);
-                                        b.setHasChildren(true);
-                                        b.setRoConfig("navId", new Value(id));
-                                        NodeListener listener = b.getListener();
-                                        listener.setOnListClosedHandler(closedHandler);
-                                        listener.setOnListHandler(navHandler);
-                                    }
-                                    iterateRow(b.build(), childRow);
-                                }
-                            }
-                        }
-                    });
-                } catch (CallErrException e) {
-                    LOGGER.info("Error calling nav on ID: {}", id, e);
-                }
+                handleNav(nav, navId, child);
             }
 
             iterateRow(child, row);
+        }
+    }
+
+    private void handleNav(final HGrid nav,
+                           final HVal navId,
+                           final Node child) {
+        HGridBuilder hGridBuilder = new HGridBuilder();
+        hGridBuilder.addCol("navId");
+        hGridBuilder.addRow(new HVal[]{navId});
+        HGrid grid = hGridBuilder.toGrid();
+        try {
+            haystack.call("nav", grid, new Handler<HGrid>() {
+                @Override
+                public void handle(HGrid children) {
+                    if (LOGGER.isDebugEnabled()) {
+                        StringWriter writer = new StringWriter();
+                        nav.dump(new PrintWriter(writer));
+                        String s = writer.toString();
+                        LOGGER.debug("Received nav: {}", s);
+                    }
+
+                    if (children != null) {
+                        Iterator childrenIt = children.iterator();
+                        while (childrenIt.hasNext()) {
+                            final HRow childRow = (HRow) childrenIt.next();
+                            final String childName = getName(childRow);
+                            if (childName == null) {
+                                continue;
+                            }
+                            NodeBuilder b = child.createChild(childName);
+                            b.setDisplayName(childRow.dis());
+                            b.getChild().setSerializable(false);
+                            HVal navId = childRow.get("navId", false);
+                            if (navId != null) {
+                                String id = navId.toString();
+                                Handler<Node> navHandler = getNavHandler(id);
+                                b.setHasChildren(true);
+                                b.setRoConfig("navId", new Value(id));
+                                NodeListener listener = b.getListener();
+                                listener.setOnListClosedHandler(getClosedHandler());
+                                listener.setOnListHandler(navHandler);
+                            }
+                            iterateRow(b.build(), childRow);
+                        }
+                    }
+                }
+            });
+        } catch (CallErrException e) {
+            LOGGER.info("Error calling nav on ID: {}", navId, e);
         }
     }
 
@@ -328,6 +315,25 @@ public class NavHelper {
             name = row.dis();
         }
         return StringUtils.encodeName(name);
+    }
+
+    private void removeNodes(Node node) {
+        if (node == null) {
+            return;
+        }
+        SubscriptionManager man = node.getLink().getSubscriptionManager();
+        Map<String, Node> children = node.getChildren();
+        if (children != null) {
+            for (Node n : children.values()) {
+                if (n != null) {
+                    removeNodes(node);
+                }
+            }
+        }
+        if (!man.hasValueSub(node)) {
+            LOGGER.debug("Removed: {}", node.getPath());
+            node.getParent().removeChild(node);
+        }
     }
 
     static {
