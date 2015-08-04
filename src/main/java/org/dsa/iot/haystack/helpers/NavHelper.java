@@ -12,25 +12,23 @@ import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
 import org.dsa.iot.haystack.actions.Actions;
 import org.dsa.iot.haystack.actions.InvokeActions;
+import org.dsa.iot.haystack.handlers.ClosedHandler;
+import org.dsa.iot.haystack.handlers.ListHandler;
 import org.projecthaystack.*;
 import org.projecthaystack.io.HZincReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vertx.java.core.Handler;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author Samuel Grenier
  */
 public class NavHelper {
 
-    private static final long REFRESH_TIME = TimeUnit.SECONDS.toMillis(60);
     private static final Logger LOGGER;
 
     private final ScheduledThreadPoolExecutor stpe;
@@ -45,63 +43,11 @@ public class NavHelper {
         stpe.shutdownNow();
     }
 
-    public Handler<Node> getNavHandler(final String navId) {
-        return new Handler<Node>() {
-
-            @Override
-            public void handle(final Node event) {
-                if (event == null) {
-                    return;
-                }
-                Value val = event.getRoConfig("lu");
-                long curr = System.currentTimeMillis();
-                if (val == null) {
-                    val = new Value(0);
-                }
-                long lastUpdate = val.getNumber().longValue();
-                long diff = curr - lastUpdate;
-                if (diff < REFRESH_TIME) {
-                    return;
-                }
-                val = new Value(curr);
-                event.setRoConfig("lu", val);
-
-                stpe.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (navId != null) {
-                            String path = event.getPath();
-                            LOGGER.info("Navigating: {} ({})", navId, path);
-                        } else {
-                            LOGGER.info("Navigating root");
-                        }
-
-                        try {
-                            haystack.nav(navId, new Handler<HGrid>() {
-                                @Override
-                                public void handle(HGrid nav) {
-                                    if (nav == null) {
-                                        return;
-                                    }
-                                    if (LOGGER.isDebugEnabled()) {
-                                        StringWriter writer = new StringWriter();
-                                        nav.dump(new PrintWriter(writer));
-                                        String n = writer.toString();
-                                        LOGGER.debug("Received nav: {}", n);
-                                    }
-                                    iterateNavChildren(nav, event, true);
-                                }
-                            });
-                        } catch (Exception e) {
-                            LOGGER.warn("Error navigating children", e);
-                        }
-                    }
-                });
-            }
-        };
+    public ScheduledThreadPoolExecutor getStpe() {
+        return stpe;
     }
 
-    private void iterateNavChildren(final HGrid nav,
+    public void iterateNavChildren(final HGrid nav,
                                     final Node node,
                                     boolean continueNav) {
         Iterator navIt = nav.iterator();
@@ -167,6 +113,11 @@ public class NavHelper {
             if (navId != null) {
                 String id = navId.toString();
                 LOGGER.debug("Received navId of {}", id);
+
+                // Ensure proper data is attached to child
+                child.setRoConfig("navId", new Value(id));
+                child.setMetaData(haystack);
+
                 // Navigate a level deeper
                 if (continueNav) {
                     haystack.nav(id, new Handler<HGrid>() {
@@ -177,10 +128,9 @@ public class NavHelper {
                     });
                 }
 
-                Handler<Node> navHandler = getNavHandler(id);
                 NodeListener listener = child.getListener();
                 listener.setOnListClosedHandler(ClosedHandler.get());
-                listener.setOnListHandler(navHandler);
+                listener.setOnListHandler(ListHandler.get());
             }
 
             iterateRow(child, row);

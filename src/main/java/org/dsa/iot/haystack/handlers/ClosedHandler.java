@@ -1,4 +1,4 @@
-package org.dsa.iot.haystack.helpers;
+package org.dsa.iot.haystack.handlers;
 
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.SubscriptionManager;

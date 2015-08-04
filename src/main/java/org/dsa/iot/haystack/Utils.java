@@ -8,6 +8,7 @@ import org.dsa.iot.dslink.node.value.ValueType;
 import org.dsa.iot.haystack.actions.Actions;
 import org.dsa.iot.haystack.actions.InvokeActions;
 import org.dsa.iot.haystack.actions.ServerActions;
+import org.dsa.iot.haystack.handlers.ListHandler;
 import org.projecthaystack.*;
 import org.vertx.java.core.Handler;
 
@@ -135,8 +136,9 @@ public class Utils {
         invokeNode.build();
 
         node.setHasChildren(true);
+        node.setRoConfig("navId", new Value((String) null));
         NodeListener listener = node.getListener();
-        Handler<Node> handler = haystack.getNavHelper().getNavHandler(null);
+        Handler<Node> handler = ListHandler.get();
         listener.setOnListHandler(handler);
     }
 
