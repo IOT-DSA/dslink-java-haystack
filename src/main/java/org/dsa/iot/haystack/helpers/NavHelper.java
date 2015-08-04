@@ -13,7 +13,6 @@ import org.dsa.iot.haystack.Utils;
 import org.dsa.iot.haystack.actions.Actions;
 import org.dsa.iot.haystack.actions.InvokeActions;
 import org.projecthaystack.*;
-import org.projecthaystack.client.CallErrException;
 import org.projecthaystack.io.HZincReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +50,7 @@ public class NavHelper {
             @Override
             public void handle(Node event) {
                 event.setRoConfig("lu", new Value(0));
-                LOGGER.info("Wants to remove: {}", event.getPath());
+                LOGGER.debug("Wants to remove: {}", event.getPath());
                 Map<String, Node> children = event.getChildren();
                 if (children == null) {
                     return;
@@ -125,7 +124,7 @@ public class NavHelper {
                                 }
                             });
                         } catch (Exception e) {
-                            LOGGER.info("Error navigating children", e);
+                            LOGGER.warn("Error navigating children", e);
                         }
                     }
                 });
@@ -196,60 +195,9 @@ public class NavHelper {
                 NodeListener listener = child.getListener();
                 listener.setOnListClosedHandler(closedHandler);
                 listener.setOnListHandler(navHandler);
-
-                handleNav(nav, navId, child);
             }
 
             iterateRow(child, row);
-        }
-    }
-
-    private void handleNav(final HGrid nav,
-                           final HVal navId,
-                           final Node child) {
-        HGridBuilder hGridBuilder = new HGridBuilder();
-        hGridBuilder.addCol("navId");
-        hGridBuilder.addRow(new HVal[]{navId});
-        HGrid grid = hGridBuilder.toGrid();
-        try {
-            haystack.call("nav", grid, new Handler<HGrid>() {
-                @Override
-                public void handle(HGrid children) {
-                    if (LOGGER.isDebugEnabled()) {
-                        StringWriter writer = new StringWriter();
-                        nav.dump(new PrintWriter(writer));
-                        String s = writer.toString();
-                        LOGGER.debug("Received nav: {}", s);
-                    }
-
-                    if (children != null) {
-                        Iterator childrenIt = children.iterator();
-                        while (childrenIt.hasNext()) {
-                            final HRow childRow = (HRow) childrenIt.next();
-                            final String childName = getName(childRow);
-                            if (childName == null) {
-                                continue;
-                            }
-                            NodeBuilder b = child.createChild(childName);
-                            b.setDisplayName(childRow.dis());
-                            b.getChild().setSerializable(false);
-                            HVal navId = childRow.get("navId", false);
-                            if (navId != null) {
-                                String id = navId.toString();
-                                Handler<Node> navHandler = getNavHandler(id);
-                                b.setHasChildren(true);
-                                b.setRoConfig("navId", new Value(id));
-                                NodeListener listener = b.getListener();
-                                listener.setOnListClosedHandler(getClosedHandler());
-                                listener.setOnListHandler(navHandler);
-                            }
-                            iterateRow(b.build(), childRow);
-                        }
-                    }
-                }
-            });
-        } catch (CallErrException e) {
-            LOGGER.info("Error calling nav on ID: {}", navId, e);
         }
     }
 
