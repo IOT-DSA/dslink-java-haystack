@@ -148,7 +148,14 @@ public class NavHelper {
             if (navId != null) {
                 builder.setHasChildren(true);
             }
-            builder.setDisplayName(row.dis());
+
+            HVal dis = row.get("navName", false);
+            if (dis == null) {
+                dis = row.get("dis", false);
+            }
+            if (dis != null) {
+                builder.setDisplayName(dis.toString());
+            }
 
             final Node child = builder.build();
             child.setSerializable(false);
