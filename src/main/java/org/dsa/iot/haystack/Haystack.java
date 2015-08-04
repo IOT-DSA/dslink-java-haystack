@@ -85,6 +85,19 @@ public class Haystack {
         node.getChild("editServer").setAction(a);
     }
 
+    public void nav(String navId, Handler<HGrid> onComplete) {
+        HGrid grid = HGrid.EMPTY;
+        if (navId != null) {
+            HGridBuilder builder = new HGridBuilder();
+            builder.addCol("navId");
+            builder.addRow(new HVal[] {
+                HUri.make(navId)
+            });
+            grid = builder.toGrid();
+        }
+        call("nav", grid, onComplete);
+    }
+
     public void call(final String op,
                final HGrid grid,
                final Handler<HGrid> onComplete) {

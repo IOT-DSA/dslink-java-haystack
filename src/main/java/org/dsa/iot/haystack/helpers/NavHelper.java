@@ -45,28 +45,6 @@ public class NavHelper {
         stpe.shutdownNow();
     }
 
-    public Handler<Node> getClosedHandler() {
-        return new Handler<Node>() {
-            @Override
-            public void handle(Node event) {
-                event.setRoConfig("lu", new Value(0));
-                LOGGER.debug("Wants to remove: {}", event.getPath());
-                Map<String, Node> children = event.getChildren();
-                if (children == null) {
-                    return;
-                }
-                for (Node n : children.values()) {
-                    if (n == null
-                            || (n.getValue() == null
-                                && n.getAction() == null)) {
-                        continue;
-                    }
-                    removeNodes(n);
-                }
-            }
-        };
-    }
-
     public Handler<Node> getNavHandler(final String navId) {
         return new Handler<Node>() {
 
@@ -91,15 +69,7 @@ public class NavHelper {
                 stpe.execute(new Runnable() {
                     @Override
                     public void run() {
-                        HGrid grid = HGrid.EMPTY;
                         if (navId != null) {
-                            HGridBuilder builder = new HGridBuilder();
-                            builder.addCol("navId");
-                            builder.addRow(new HVal[] {
-                                    HUri.make(navId)
-                            });
-                            grid = builder.toGrid();
-
                             String path = event.getPath();
                             LOGGER.info("Navigating: {} ({})", navId, path);
                         } else {
@@ -107,8 +77,7 @@ public class NavHelper {
                         }
 
                         try {
-                            haystack.call("nav",
-                                    grid, new Handler<HGrid>() {
+                            haystack.nav(navId, new Handler<HGrid>() {
                                 @Override
                                 public void handle(HGrid nav) {
                                     if (nav == null) {
@@ -120,7 +89,7 @@ public class NavHelper {
                                         String n = writer.toString();
                                         LOGGER.debug("Received nav: {}", n);
                                     }
-                                    iterateNavChildren(nav, event);
+                                    iterateNavChildren(nav, event, true);
                                 }
                             });
                         } catch (Exception e) {
@@ -132,7 +101,9 @@ public class NavHelper {
         };
     }
 
-    private void iterateNavChildren(final HGrid nav, Node node) {
+    private void iterateNavChildren(final HGrid nav,
+                                    final Node node,
+                                    boolean continueNav) {
         Iterator navIt = nav.iterator();
         while (navIt != null && navIt.hasNext()) {
             final HRow row = (HRow) navIt.next();
@@ -196,11 +167,19 @@ public class NavHelper {
             if (navId != null) {
                 String id = navId.toString();
                 LOGGER.debug("Received navId of {}", id);
+                // Navigate a level deeper
+                if (continueNav) {
+                    haystack.nav(id, new Handler<HGrid>() {
+                        @Override
+                        public void handle(HGrid event) {
+                            iterateNavChildren(event, child, false);
+                        }
+                    });
+                }
 
-                final Handler<Node> closedHandler = getClosedHandler();
                 Handler<Node> navHandler = getNavHandler(id);
                 NodeListener listener = child.getListener();
-                listener.setOnListClosedHandler(closedHandler);
+                listener.setOnListClosedHandler(ClosedHandler.get());
                 listener.setOnListHandler(navHandler);
             }
 
@@ -270,25 +249,6 @@ public class NavHelper {
             name = row.dis();
         }
         return StringUtils.encodeName(name);
-    }
-
-    private void removeNodes(Node node) {
-        if (node == null) {
-            return;
-        }
-        SubscriptionManager man = node.getLink().getSubscriptionManager();
-        Map<String, Node> children = node.getChildren();
-        if (children != null) {
-            for (Node n : children.values()) {
-                if (n != null) {
-                    removeNodes(node);
-                }
-            }
-        }
-        if (!man.hasValueSub(node)) {
-            LOGGER.debug("Removed: {}", node.getPath());
-            node.getParent().removeChild(node);
-        }
     }
 
     static {
