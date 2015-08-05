@@ -36,7 +36,13 @@ public class ListHandler implements Handler<Node> {
             return;
         }
         final NavHelper helper = haystack.getNavHelper();
-        final String navId = event.getRoConfig("navId").getString();
+        final Value vNav = event.getRoConfig("navId");
+        final String navId;
+        if (vNav != null) {
+            navId = vNav.getString();
+        } else {
+            navId = null;
+        }
 
         Value val = event.getRoConfig("lu");
         long curr = System.currentTimeMillis();

@@ -136,7 +136,6 @@ public class Utils {
         invokeNode.build();
 
         node.setHasChildren(true);
-        node.setRoConfig("navId", new Value((String) null));
         NodeListener listener = node.getListener();
         Handler<Node> handler = ListHandler.get();
         listener.setOnListHandler(handler);
