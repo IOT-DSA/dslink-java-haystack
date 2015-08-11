@@ -47,9 +47,10 @@ public class InvokeActions {
                         HDictBuilder b = new HDictBuilder();
                         for (Parameter p : params) {
                             String name = p.getName();
-                            ValueType type = p.getType();
-                            Value v = event.getParameter(name, type);
-                            Utils.argToDict(b, name, v);
+                            Value v = event.getParameter(name);
+                            if (v != null) {
+                                Utils.argToDict(b, name, v);
+                            }
                         }
                         HGrid res = client.invokeAction(id, act, b.toDict());
                         Actions.buildTable(res, event);
@@ -143,10 +144,12 @@ public class InvokeActions {
 
         final List<Parameter> params = new LinkedList<>();
         Matcher matcher = PATTERN.matcher(expr);
-        while (matcher.find()) {
+        matcher: while (matcher.find()) {
             String name = matcher.group(0).substring(1);
             ValueType type;
             switch (name) {
+                case "self":
+                    continue matcher;
                 case "number":
                     type = ValueType.NUMBER;
                     break;

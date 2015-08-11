@@ -31,13 +31,34 @@ public class Utils {
     public static void argToDict(HDictBuilder b, String name, Value value) {
         switch (name) {
             case "str":
-                b.add(name, value.getString());
+                b.add(name, HStr.make(value.getString()));
                 break;
             case "bool":
-                b.add(name, value.getBool());
+                b.add(name, HBool.make(value.getBool()));
                 break;
+            case "duration":
+            case "val":
             case "number":
-                b.add(name, value.getNumber().doubleValue());
+                StringBuilder num = new StringBuilder();
+                StringBuilder unit = null;
+                for (char c : value.toString().toCharArray()) {
+                    if (Character.isDigit(c)) {
+                        num.append(c);
+                    } else if (c != ' ') {
+                        if (unit == null) {
+                            unit = new StringBuilder();
+                        }
+                        unit.append(c);
+                    }
+                }
+                double d = Double.parseDouble(num.toString());
+                HNum hNum;
+                if (unit != null) {
+                    hNum = HNum.make(d, unit.toString());
+                } else {
+                    hNum = HNum.make(d);
+                }
+                b.add(name, hNum);
                 break;
             case "date":
                 b.add("date", HDate.make(value.getString()));
