@@ -290,7 +290,11 @@ public class Actions {
                 haystack.eval(expr, new Handler<HGrid>() {
                     @Override
                     public void handle(HGrid grid) {
-                        buildTable(grid, event);
+                        if (grid != null) {
+                            buildTable(grid, event);
+                        } else {
+                            event.getTable().close();
+                        }
                     }
                 });
             }
