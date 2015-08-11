@@ -28,13 +28,22 @@ public class ClosedHandler implements Handler<Node> {
         if (children == null) {
             return;
         }
-        for (Node n : children.values()) {
-            if (n == null
-                    || (n.getValue() == null
-                    && n.getAction() == null)) {
+        for (Node child : children.values()) {
+            if (child == null) {
                 continue;
             }
-            removeNodes(n);
+            Map<String, Node> nChildren = child.getChildren();
+            if (nChildren == null) {
+                continue;
+            }
+            for (Node n : nChildren.values()) {
+                if (n == null
+                        || (n.getValue() == null
+                        && n.getAction() == null)) {
+                    continue;
+                }
+                removeNodes(n);
+            }
         }
     }
 
@@ -46,7 +55,7 @@ public class ClosedHandler implements Handler<Node> {
         Map<String, Node> children = node.getChildren();
         if (children != null) {
             for (Node n : children.values()) {
-                if (n != null) {
+                if (n != null && (n.getValue() == null)) {
                     removeNodes(node);
                 }
             }
