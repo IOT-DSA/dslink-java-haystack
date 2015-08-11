@@ -150,9 +150,6 @@ public class InvokeActions {
             switch (name) {
                 case "self":
                     continue matcher;
-                case "number":
-                    type = ValueType.NUMBER;
-                    break;
                 case "bool":
                     type = ValueType.BOOL;
                     break;
