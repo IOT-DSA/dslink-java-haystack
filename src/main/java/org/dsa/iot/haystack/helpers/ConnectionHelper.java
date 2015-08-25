@@ -164,6 +164,7 @@ public class ConnectionHelper {
                 String pass = String.valueOf(password);
                 synchronized (lock) {
                     client = HClient.open(url, username, pass);
+                    LOGGER.info("Opened connection to {}", url);
                     connectFuture.cancel(false);
                     connectFuture = null;
 
