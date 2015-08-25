@@ -244,10 +244,6 @@ public class Haystack {
                     Node node = subs.get(row.id().toString());
                     if (node != null) {
                         Map<String, Node> children = node.getChildren();
-                        List<String> remove = null;
-                        if (children != null) {
-                            remove = new ArrayList<>(children.keySet());
-                        }
 
                         Iterator rowIt = row.iterator();
                         while (rowIt.hasNext()) {
@@ -270,15 +266,6 @@ public class Haystack {
                                 b.setValue(value);
                                 Node n = b.build();
                                 n.setSerializable(false);
-                            }
-                            if (remove != null) {
-                                remove.remove(encoded);
-                            }
-                        }
-
-                        if (remove != null) {
-                            for (String s : remove) {
-                                node.removeChild(s);
                             }
                         }
                     }
