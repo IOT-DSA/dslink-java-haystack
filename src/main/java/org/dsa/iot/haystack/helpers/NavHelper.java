@@ -69,7 +69,12 @@ public class NavHelper {
             }
 
             // Handle child
-            NodeBuilder builder = node.createChild(name);
+            NodeBuilder builder;
+            if (node.hasChild(name)) {
+                builder = node.getChild(name).createFakeBuilder();
+            } else {
+                builder = node.createChild(name);
+            }
             HVal navId = row.get("navId", false);
             if (navId != null) {
                 builder.setHasChildren(true);
@@ -83,8 +88,8 @@ public class NavHelper {
                 builder.setDisplayName(dis.toString());
             }
 
+            builder.setSerializable(false);
             final Node child = builder.build();
-            child.setSerializable(false);
 
             // Handle writable
             final HVal writable = row.get("writable", false);
@@ -159,7 +164,12 @@ public class NavHelper {
                 n = node.createChild(ref).build();
             }
 
-            NodeBuilder builder = n.createChild(name);
+            NodeBuilder builder;
+            if (n.hasChild(name)) {
+                builder = n.getChild(name).createFakeBuilder();
+            } else {
+                builder = n.createChild(name);
+            }
             HVal navId = row.get("navId", false);
             if (navId != null) {
                 builder.setHasChildren(true);
@@ -173,8 +183,8 @@ public class NavHelper {
                 builder.setDisplayName(dis.toString());
             }
 
+            builder.setSerializable(false);
             final Node child = builder.build();
-            child.setSerializable(false);
 
             // Handle writable
             final HVal writable = row.get("writable", false);

@@ -46,13 +46,12 @@ public class ListHandler implements Handler<Node> {
 
         Value val = event.getRoConfig("lu");
         long curr = System.currentTimeMillis();
-        if (val == null) {
-            val = new Value(0);
-        }
-        long lastUpdate = val.getNumber().longValue();
-        long diff = curr - lastUpdate;
-        if (diff < REFRESH_TIME) {
-            return;
+        if (val != null) {
+            long lastUpdate = val.getNumber().longValue();
+            long diff = curr - lastUpdate;
+            if (diff < REFRESH_TIME) {
+                return;
+            }
         }
         val = new Value(curr);
         event.setRoConfig("lu", val);
