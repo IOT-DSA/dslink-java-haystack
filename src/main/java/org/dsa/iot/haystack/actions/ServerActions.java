@@ -11,7 +11,7 @@ import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
-import org.vertx.java.core.Handler;
+import org.dsa.iot.dslink.util.handler.Handler;
 
 /**
  * @author Samuel Grenier

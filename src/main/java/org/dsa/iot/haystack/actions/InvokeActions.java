@@ -11,12 +11,12 @@ import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
 import org.dsa.iot.dslink.node.value.ValueUtils;
 import org.dsa.iot.dslink.util.StringUtils;
+import org.dsa.iot.dslink.util.json.JsonObject;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
 import org.projecthaystack.*;
 import org.projecthaystack.client.HClient;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.json.JsonObject;
+import org.dsa.iot.dslink.util.handler.Handler;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -92,8 +92,7 @@ public class InvokeActions {
                         final JsonObject args = vArgs.getMap();
 
                         HDictBuilder b = new HDictBuilder();
-                        for (Map.Entry<String, Object> entry
-                                    : args.toMap().entrySet()) {
+                        for (Map.Entry<String, Object> entry : args) {
                             String name = entry.getKey();
                             Value val = ValueUtils.toValue(entry.getValue());
                             Utils.argToDict(b, name, val);
@@ -126,8 +125,8 @@ public class InvokeActions {
         {
             Parameter p = new Parameter("Args", ValueType.MAP);
             JsonObject def = new JsonObject();
-            def.putString("str", "Hello world");
-            def.putBoolean("bool", true);
+            def.put("str", "Hello world");
+            def.put("bool", true);
             p.setPlaceHolder(def.toString());
             a.addParameter(p);
         }

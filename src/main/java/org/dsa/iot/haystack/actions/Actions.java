@@ -8,13 +8,13 @@ import org.dsa.iot.dslink.node.actions.table.Table;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
 import org.dsa.iot.dslink.node.value.ValueUtils;
+import org.dsa.iot.dslink.util.json.JsonObject;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
 import org.dsa.iot.haystack.helpers.SubHelper;
 import org.projecthaystack.*;
 import org.projecthaystack.client.HClient;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.json.JsonObject;
+import org.dsa.iot.dslink.util.handler.Handler;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -355,7 +355,7 @@ public class Actions {
                         if (value != null) {
                             ValueUtils.toJson(metaObj, name, value);
                         } else {
-                            metaObj.putString(name, null);
+                            metaObj.put(name, null);
                         }
                     }
                 }
@@ -380,7 +380,7 @@ public class Actions {
                         if (value != null) {
                             ValueUtils.toJson(metaObj, name, value);
                         } else {
-                            metaObj.putString(name, null);
+                            metaObj.put(name, null);
                         }
                     }
                 }

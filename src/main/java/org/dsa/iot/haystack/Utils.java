@@ -10,7 +10,7 @@ import org.dsa.iot.haystack.actions.InvokeActions;
 import org.dsa.iot.haystack.actions.ServerActions;
 import org.dsa.iot.haystack.handlers.ListHandler;
 import org.projecthaystack.*;
-import org.vertx.java.core.Handler;
+import org.dsa.iot.dslink.util.handler.Handler;
 
 /**
  * @author Samuel Grenier

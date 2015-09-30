@@ -7,7 +7,7 @@ import org.dsa.iot.haystack.helpers.NavHelper;
 import org.projecthaystack.HGrid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.vertx.java.core.Handler;
+import org.dsa.iot.dslink.util.handler.Handler;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;

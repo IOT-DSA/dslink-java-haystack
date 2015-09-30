@@ -8,7 +8,7 @@ import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
 import org.projecthaystack.*;
 import org.projecthaystack.client.HClient;
-import org.vertx.java.core.Handler;
+import org.dsa.iot.dslink.util.handler.Handler;
 
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
