@@ -144,16 +144,9 @@ public class Haystack {
         conn.getClient(new Handler<HClient>() {
             @Override
             public void handle(HClient event) {
-                try {
-                    HGrid ret = event.eval(expr);
-                    if (onComplete != null) {
-                        onComplete.handle(ret);
-                    }
-                } catch (Exception e) {
-                    if (onComplete != null) {
-                        onComplete.handle(null);
-                    }
-                    e.printStackTrace();
+                HGrid ret = event.eval(expr);
+                if (onComplete != null) {
+                    onComplete.handle(ret);
                 }
             }
         });
