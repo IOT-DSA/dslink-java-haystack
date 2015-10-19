@@ -22,7 +22,11 @@ public class ClosedHandler implements Handler<Node> {
 
     @Override
     public void handle(Node event) {
-        event.setRoConfig("lu", new Value(0));
+        {
+            Value val = new Value(0);
+            val.setSerializable(false);
+            event.setRoConfig("lu", val);
+        }
         LOGGER.debug("Wants to remove: {}", event.getPath());
         Map<String, Node> children = event.getChildren();
         if (children == null) {

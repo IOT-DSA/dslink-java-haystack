@@ -38,10 +38,20 @@ public class Haystack {
     private boolean watchEnabled;
 
     public Haystack(final Node node) {
-        node.setRoConfig("lu", new Value(0));
+        {
+            Value val = new Value(0);
+            val.setSerializable(false);
+            node.setRoConfig("lu", val);
+        }
         node.setMetaData(this);
-        if (node.getConfig("pr") == null) {
-            node.setConfig("pr", new Value(5));
+        {
+            Value pr;
+            if ((pr = node.removeConfig("pr")) != null) {
+                node.setConfig("pollRate", pr);
+            }
+            if (node.getConfig("pollRate") == null) {
+                node.setConfig("pollRate", new Value(5));
+            }
         }
         this.stpe = Objects.createDaemonThreadPool();
         this.node = node;
@@ -60,7 +70,7 @@ public class Haystack {
                     }
                 }
 
-                setupPoll(node.getConfig("pr").getNumber().intValue());
+                setupPoll(getPollRate().getNumber().intValue());
             }
         }, new Handler<Void>() {
             @Override
@@ -72,6 +82,10 @@ public class Haystack {
         });
         // Ensure subscriptions are subscribed
         conn.getClient(null);
+    }
+
+    public Value getPollRate() {
+        return node.getConfig("pollRate");
     }
 
     public void editConnection(String url,

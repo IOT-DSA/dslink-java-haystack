@@ -54,6 +54,7 @@ public class ListHandler implements Handler<Node> {
             }
         }
         val = new Value(curr);
+        val.setSerializable(false);
         event.setRoConfig("lu", val);
 
         ScheduledThreadPoolExecutor stpe = helper.getStpe();

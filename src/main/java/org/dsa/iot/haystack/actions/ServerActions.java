@@ -93,7 +93,7 @@ public class ServerActions {
                 if (vPR.getNumber().intValue() < 1) {
                     vPR.set(1);
                 }
-                node.setConfig("pr", vPR);
+                node.setConfig("pollRate", vPR);
                 int pollRate = vPR.getNumber().intValue();
 
                 haystack.editConnection(url, user, pass, pollRate);
@@ -120,7 +120,11 @@ public class ServerActions {
             String desc = "How often the Haystack server should be polled ";
             desc += "changes";
             p.setDescription(desc);
-            p.setDefaultValue(node.getConfig("pr"));
+            {
+                Haystack haystack = node.getMetaData();
+                p.setDefaultValue(haystack.getPollRate());
+            }
+
             a.addParameter(p);
         }
         return a;
