@@ -9,6 +9,7 @@ import org.dsa.iot.dslink.util.StringUtils;
 import org.dsa.iot.haystack.actions.ServerActions;
 import org.dsa.iot.haystack.helpers.ConnectionHelper;
 import org.dsa.iot.haystack.helpers.NavHelper;
+import org.dsa.iot.haystack.helpers.StateHandler;
 import org.projecthaystack.*;
 import org.projecthaystack.client.HClient;
 import org.slf4j.Logger;
@@ -115,7 +116,7 @@ public class Haystack {
     public void call(final String op,
                final HGrid grid,
                final Handler<HGrid> onComplete) {
-        conn.getClient(new Handler<HClient>() {
+        conn.getClient(new StateHandler<HClient>() {
             @Override
             public void handle(HClient event) {
                 HGrid ret = event.call(op, grid);
@@ -129,7 +130,7 @@ public class Haystack {
     public void read(final String filter,
               final int limit,
               final Handler<HGrid> onComplete) {
-        conn.getClient(new Handler<HClient>() {
+        conn.getClient(new StateHandler<HClient>() {
             @Override
             public void handle(HClient event) {
                 HGrid ret = event.readAll(filter, limit);
@@ -141,7 +142,7 @@ public class Haystack {
     }
 
     public void eval(final String expr, final Handler<HGrid> onComplete) {
-        conn.getClient(new Handler<HClient>() {
+        conn.getClient(new StateHandler<HClient>() {
             @Override
             public void handle(HClient event) {
                 HGrid ret = event.eval(expr);
@@ -176,7 +177,7 @@ public class Haystack {
             subs.put(id.toString(), node);
         }
 
-        conn.getWatch(new Handler<HWatch>() {
+        conn.getWatch(new StateHandler<HWatch>() {
             @Override
             public void handle(HWatch event) {
                 event.sub(new HRef[]{id});
@@ -189,7 +190,7 @@ public class Haystack {
             return;
         }
         subs.remove(id.toString());
-        conn.getWatch(new Handler<HWatch>() {
+        conn.getWatch(new StateHandler<HWatch>() {
             @Override
             public void handle(HWatch event) {
                 event.unsub(new HRef[]{id});
@@ -237,7 +238,7 @@ public class Haystack {
             return;
         }
 
-        conn.getWatch(new Handler<HWatch>() {
+        conn.getWatch(new StateHandler<HWatch>() {
             @Override
             public void handle(HWatch event) {
                 HGrid grid = event.pollChanges();

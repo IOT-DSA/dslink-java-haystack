@@ -4,6 +4,7 @@ import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.util.Objects;
 import org.projecthaystack.HGrid;
 import org.projecthaystack.HWatch;
+import org.projecthaystack.client.CallErrException;
 import org.projecthaystack.client.CallHttpException;
 import org.projecthaystack.client.CallNetworkException;
 import org.projecthaystack.client.HClient;
@@ -81,11 +82,11 @@ public class ConnectionHelper {
         }
     }
 
-    public void getWatch(final Handler<HWatch> onWatchReceived) {
+    public void getWatch(final StateHandler<HWatch> onWatchReceived) {
         try {
             synchronized (lock) {
                 if (watch == null) {
-                    getClient(new Handler<HClient>() {
+                    getClient(new StateHandler<HClient>() {
                         @Override
                         public void handle(HClient event) {
                             synchronized (lock) {
@@ -113,9 +114,22 @@ public class ConnectionHelper {
         }
     }
 
-    public void getClient(Handler<HClient> onClientReceived) {
+    public void getClient(StateHandler<HClient> onClientReceived) {
         try {
             connect(onClientReceived);
+        } catch (CallErrException cee) {
+            if (onClientReceived != null
+                    && onClientReceived.incrementRetryCount() > 1) {
+                throw cee;
+            }
+            String s = cee.getMessage();
+            if (s.startsWith("proj::PermissionErr")) {
+                LOGGER.debug("Permission Error, reconnecting to {}", url);
+                close();
+                getClient(onClientReceived);
+            } else {
+                throw cee;
+            }
         } catch (CallNetworkException cne) {
             close();
             Throwable t = cne.getCause();

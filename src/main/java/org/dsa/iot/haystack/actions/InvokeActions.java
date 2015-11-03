@@ -14,6 +14,7 @@ import org.dsa.iot.dslink.util.StringUtils;
 import org.dsa.iot.dslink.util.json.JsonObject;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
+import org.dsa.iot.haystack.helpers.StateHandler;
 import org.projecthaystack.*;
 import org.projecthaystack.client.HClient;
 import org.dsa.iot.dslink.util.handler.Handler;
@@ -41,7 +42,7 @@ public class InvokeActions {
             @Override
             public void handle(final ActionResult event) {
                 final CountDownLatch latch = new CountDownLatch(1);
-                haystack.getConnHelper().getClient(new Handler<HClient>() {
+                haystack.getConnHelper().getClient(new StateHandler<HClient>() {
                     @Override
                     public void handle(HClient client) {
                         HDictBuilder b = new HDictBuilder();
@@ -79,7 +80,7 @@ public class InvokeActions {
             @Override
             public void handle(final ActionResult event) {
                 final CountDownLatch latch = new CountDownLatch(1);
-                haystack.getConnHelper().getClient(new Handler<HClient>() {
+                haystack.getConnHelper().getClient(new StateHandler<HClient>() {
                     @Override
                     public void handle(HClient client) {
                         Value vID = event.getParameter("ID", ValueType.STRING);

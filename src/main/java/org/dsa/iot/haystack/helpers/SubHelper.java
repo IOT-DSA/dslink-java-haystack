@@ -38,7 +38,7 @@ public class SubHelper {
         ConnectionHelper helper = haystack.getConnHelper();
         final Thread thread = Thread.currentThread();
         final CountDownLatch latch = new CountDownLatch(1);
-        helper.getClient(new Handler<HClient>() {
+        helper.getClient(new StateHandler<HClient>() {
             @Override
             public void handle(final HClient client) {
                 if (!running) {

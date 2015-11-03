@@ -9,6 +9,7 @@ import org.dsa.iot.dslink.node.NodeManager;
 import org.dsa.iot.dslink.util.StringUtils;
 import org.dsa.iot.haystack.actions.Actions;
 import org.dsa.iot.haystack.actions.InvokeActions;
+import org.dsa.iot.haystack.helpers.StateHandler;
 import org.projecthaystack.*;
 import org.projecthaystack.client.HClient;
 import org.projecthaystack.io.HZincReader;
@@ -100,7 +101,7 @@ public class Main extends DSLinkHandler {
         final Container container = new Container();
         switch (actName) {
             case "pointWrite": {
-                haystack.getConnHelper().getClient(new Handler<HClient>() {
+                haystack.getConnHelper().getClient(new StateHandler<HClient>() {
                     @Override
                     public void handle(HClient event) {
                         HDict dict = event.readById(id);
@@ -124,7 +125,7 @@ public class Main extends DSLinkHandler {
                 break;
             }
             default: {
-                haystack.getConnHelper().getClient(new Handler<HClient>() {
+                haystack.getConnHelper().getClient(new StateHandler<HClient>() {
                     @Override
                     public void handle(HClient event) {
                         HDict dict = event.readById(id);

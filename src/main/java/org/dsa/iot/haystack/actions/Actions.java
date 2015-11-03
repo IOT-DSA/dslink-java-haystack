@@ -11,6 +11,7 @@ import org.dsa.iot.dslink.node.value.ValueUtils;
 import org.dsa.iot.dslink.util.json.JsonObject;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
+import org.dsa.iot.haystack.helpers.StateHandler;
 import org.dsa.iot.haystack.helpers.SubHelper;
 import org.projecthaystack.*;
 import org.projecthaystack.client.HClient;
@@ -70,7 +71,7 @@ public class Actions {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(final ActionResult event) {
-                haystack.getConnHelper().getClient(new Handler<HClient>() {
+                haystack.getConnHelper().getClient(new StateHandler<HClient>() {
                     @Override
                     public void handle(HClient client) {
                         Value vLev = event.getParameter("Level", ValueType.STRING);
