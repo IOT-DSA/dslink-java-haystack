@@ -175,7 +175,10 @@ public class ConnectionHelper {
         @Override
         public void run() {
             try {
-                String pass = String.valueOf(password);
+                String pass = "";
+                if (password != null) {
+                    pass = String.valueOf(password);
+                }
                 synchronized (lock) {
                     client = HClient.open(url, username, pass);
                     LOGGER.info("Opened connection to {}", url);
