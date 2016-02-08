@@ -7,7 +7,6 @@ import org.dsa.iot.dslink.node.actions.table.Row;
 import org.dsa.iot.dslink.node.actions.table.Table;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
-import org.dsa.iot.dslink.node.value.ValueUtils;
 import org.dsa.iot.dslink.util.json.JsonObject;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
@@ -354,7 +353,7 @@ public class Actions {
                         HVal val = (HVal) entry.getValue();
                         Value value = Utils.hvalToVal(val);
                         if (value != null) {
-                            ValueUtils.toJson(metaObj, name, value);
+                            metaObj.put(name, value);
                         } else {
                             metaObj.put(name, null);
                         }
@@ -379,7 +378,7 @@ public class Actions {
                         HVal val = (HVal) entry.getValue();
                         Value value = Utils.hvalToVal(val);
                         if (value != null) {
-                            ValueUtils.toJson(metaObj, name, value);
+                            metaObj.put(name, value);
                         } else {
                             metaObj.put(name, null);
                         }
