@@ -9,9 +9,9 @@ import org.dsa.iot.dslink.node.actions.EditorType;
 import org.dsa.iot.dslink.node.actions.Parameter;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
+import org.dsa.iot.dslink.util.handler.Handler;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
-import org.dsa.iot.dslink.util.handler.Handler;
 
 /**
  * @author Samuel Grenier
@@ -48,7 +48,9 @@ public class ServerActions {
             }
         });
         a.addParameter(new Parameter("name", ValueType.STRING));
-        a.addParameter(new Parameter("url", ValueType.STRING));
+        a.addParameter(new Parameter("url", ValueType.STRING)
+                               .setDescription("http://{domain}/api/{projectName}")
+                               .setPlaceHolder("http://{domain}/api/{projectName}"));
         a.addParameter(new Parameter("username", ValueType.STRING));
         {
             Parameter p = new Parameter("password", ValueType.STRING);
