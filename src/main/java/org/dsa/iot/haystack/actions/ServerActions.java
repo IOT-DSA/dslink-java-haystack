@@ -102,7 +102,8 @@ public class ServerActions {
             }
         });
         {
-            Parameter p = new Parameter("URL", ValueType.STRING);
+            Parameter p = new Parameter("URL", ValueType.STRING)
+                    .setDescription("http://{domain}/api/{projectName}");
             p.setDefaultValue(node.getConfig("url"));
             a.addParameter(p);
         }
