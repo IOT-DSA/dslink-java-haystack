@@ -211,7 +211,7 @@ public class ConnectionHelper {
                     onConnected.handle(client);
                 }
             } catch (RuntimeException e) {
-                LOGGER.warn("Unable to connect to {}", url);
+                LOGGER.warn("Unable to connect to {} : {} : {}", url, e.getMessage(), e.getCause().getMessage());
             }
         }
     }
