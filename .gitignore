@@ -8,3 +8,4 @@ build
 # Project files
 *.iml
 .idea
+/bin/
