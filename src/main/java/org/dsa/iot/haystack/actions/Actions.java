@@ -344,7 +344,7 @@ public class Actions {
         {
             HDict meta = in.meta();
             if (meta != null && !meta.isEmpty()) {
-                Iterator it = meta.iterator();
+                Iterator<?> it = meta.iterator();
                 JsonObject metaObj = new JsonObject();
                 while (it.hasNext()) {
                     Map.Entry entry = (Map.Entry) it.next();
@@ -369,7 +369,7 @@ public class Actions {
 
             HDict meta = col.meta();
             if (meta != null && !meta.isEmpty()) {
-                Iterator it = meta.iterator();
+                Iterator<?> it = meta.iterator();
                 JsonObject metaObj = new JsonObject();
                 while (it.hasNext()) {
                     Map.Entry entry = (Map.Entry) it.next();
@@ -390,7 +390,7 @@ public class Actions {
             t.addColumn(p);
         }
 
-        Iterator it = in.iterator();
+        Iterator<?> it = in.iterator();
         while (it.hasNext()) {
             HRow hRow = (HRow) it.next();
             Row row = new Row();

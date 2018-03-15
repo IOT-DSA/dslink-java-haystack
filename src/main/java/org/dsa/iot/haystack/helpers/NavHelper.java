@@ -52,7 +52,7 @@ public class NavHelper {
     public void iterateNavChildren(final HGrid nav,
                                     final Node node,
                                     boolean continueNav) {
-        Iterator navIt = nav.iterator();
+        Iterator<?> navIt = nav.iterator();
         List<HRow> equipRefs = new ArrayList<>();
         while (navIt != null && navIt.hasNext()) {
             final HRow row = (HRow) navIt.next();
@@ -69,12 +69,7 @@ public class NavHelper {
             }
 
             // Handle child
-            NodeBuilder builder;
-            if (node.hasChild(name)) {
-                builder = node.getChild(name).createFakeBuilder();
-            } else {
-                builder = node.createChild(name);
-            }
+            NodeBuilder builder = Utils.getBuilder(node, name);
             HVal navId = row.get("navId", false);
             if (navId != null) {
                 builder.setHasChildren(true);
@@ -95,7 +90,7 @@ public class NavHelper {
             final HVal writable = row.get("writable", false);
             if (writable instanceof HMarker) {
                 HRef id = row.id();
-                NodeBuilder b = child.createChild("pointWrite");
+                NodeBuilder b = Utils.getBuilder(child, "pointWrite");
                 b.setDisplayName("Point Write");
                 b.setSerializable(false);
 
@@ -115,7 +110,7 @@ public class NavHelper {
                 }
                 HZincReader reader = new HZincReader(zinc);
                 HGrid grid = reader.readGrid();
-                Iterator it = grid.iterator();
+                Iterator<?> it = grid.iterator();
                 HRef id = row.id();
                 while (it.hasNext()) {
                     HRow r = (HRow) it.next();
@@ -164,12 +159,7 @@ public class NavHelper {
                 n = node.createChild(ref).build();
             }
 
-            NodeBuilder builder;
-            if (n.hasChild(name)) {
-                builder = n.getChild(name).createFakeBuilder();
-            } else {
-                builder = n.createChild(name);
-            }
+            NodeBuilder builder = Utils.getBuilder(n, name);
             HVal navId = row.get("navId", false);
             if (navId != null) {
                 builder.setHasChildren(true);
@@ -190,7 +180,7 @@ public class NavHelper {
             final HVal writable = row.get("writable", false);
             if (writable instanceof HMarker) {
                 HRef id = row.id();
-                NodeBuilder b = child.createChild("pointWrite");
+                NodeBuilder b = Utils.getBuilder(child, "pointWrite");
                 b.setDisplayName("Point Write");
                 b.setSerializable(false);
 
@@ -210,7 +200,7 @@ public class NavHelper {
                 }
                 HZincReader reader = new HZincReader(zinc);
                 HGrid grid = reader.readGrid();
-                Iterator it = grid.iterator();
+                Iterator<?> it = grid.iterator();
                 HRef id = row.id();
                 while (it.hasNext()) {
                     HRow r = (HRow) it.next();
@@ -248,7 +238,7 @@ public class NavHelper {
 
     private void iterateRow(Node node, HRow row) {
         handleRowValSubs(node, row);
-        Iterator it = row.iterator();
+        Iterator<?> it = row.iterator();
         while (it.hasNext()) {
             Map.Entry entry = (Map.Entry) it.next();
             String name = (String) entry.getKey();
@@ -258,7 +248,10 @@ public class NavHelper {
             HVal val = (HVal) entry.getValue();
             Value value = Utils.hvalToVal(val);
 
-            Node child = node.createChild(name).build();
+            Node child = node.getChild(name);
+            if (child == null) {
+            	child = node.createChild(name).build();
+            }
             child.setValueType(value.getType());
             child.setValue(value);
         }
@@ -269,7 +262,10 @@ public class NavHelper {
         if (id == null) {
             return;
         }
-        Node child = node.createChild("id").build();
+        Node child = node.getChild("id");
+        if (child == null) {
+        	child = node.createChild("id").build();
+        }
         Value val = Utils.hvalToVal(id);
         child.setValueType(val.getType());
         child.setValue(val);
@@ -277,6 +273,7 @@ public class NavHelper {
         listener.setOnSubscribeHandler(new Handler<Node>() {
             @Override
             public void handle(Node event) {
+            	LOGGER.debug("Subscribing " + node.getDisplayName());
                 haystack.subscribe((HRef) id, node);
             }
         });
@@ -294,6 +291,7 @@ public class NavHelper {
                         }
                     }
                 }
+                LOGGER.debug("Unsubscribing " + node.getDisplayName());
                 haystack.unsubscribe((HRef) id);
             }
         });

@@ -8,8 +8,6 @@ import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
 import org.projecthaystack.*;
 import org.projecthaystack.client.HClient;
-import org.dsa.iot.dslink.util.handler.Handler;
-
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
@@ -48,7 +46,7 @@ public class SubHelper {
                 final List<String> cols = new LinkedList<>();
                 try {
                     HDict data = client.readById(id);
-                    Iterator it = data.iterator();
+                    Iterator<?> it = data.iterator();
                     Row row = new Row();
                     while (it.hasNext()) {
                         Map.Entry col = (Map.Entry) it.next();

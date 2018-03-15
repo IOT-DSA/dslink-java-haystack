@@ -31,7 +31,7 @@ public class ServerActions {
                 String name = vName.getString();
                 String url = vUrl.getString();
 
-                NodeBuilder builder = parent.createChild(name);
+                NodeBuilder builder = Utils.getBuilder(parent, name);
                 builder.setConfig("url", new Value(url));
                 if (vUser != null) {
                     String user = vUser.getString();

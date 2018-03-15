@@ -246,14 +246,14 @@ public class Haystack {
                     return;
                 }
 
-                Iterator it = grid.iterator();
+                Iterator<?> it = grid.iterator();
                 while (it.hasNext()) {
                     HRow row = (HRow) it.next();
                     Node node = subs.get(row.id().toString());
                     if (node != null) {
                         Map<String, Node> children = node.getChildren();
 
-                        Iterator rowIt = row.iterator();
+                        Iterator<?> rowIt = row.iterator();
                         while (rowIt.hasNext()) {
                             Map.Entry entry = (Map.Entry) rowIt.next();
                             String name = (String) entry.getKey();
@@ -269,7 +269,7 @@ public class Haystack {
                                 child.setValueType(value.getType());
                                 child.setValue(value);
                             } else {
-                                NodeBuilder b = node.createChild(encoded);
+                            	NodeBuilder b = Utils.getBuilder(node, encoded);
                                 b.setValueType(value.getType());
                                 b.setValue(value);
                                 Node n = b.build();
@@ -283,7 +283,7 @@ public class Haystack {
     }
 
     public static void init(Node superRoot) {
-        NodeBuilder builder = superRoot.createChild("addServer");
+    	NodeBuilder builder = Utils.getBuilder(superRoot, "addServer");
         builder.setDisplayName("Add Server");
         builder.setSerializable(false);
         builder.setAction(ServerActions.getAddServerAction(superRoot)).build();
@@ -291,7 +291,7 @@ public class Haystack {
         Map<String, Node> children = superRoot.getChildren();
         if (children != null) {
             for (Node child : children.values()) {
-                if (child.getAction() == null) {
+                if (child.getAction() == null && !"sys".equals(child.getName())) {
                     Haystack haystack = new Haystack(child);
                     child.clearChildren();
                     Utils.initCommon(haystack, child);

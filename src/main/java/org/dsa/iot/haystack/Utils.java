@@ -108,49 +108,49 @@ public class Utils {
     }
 
     public static void initCommon(Haystack haystack, Node node) {
-        NodeBuilder remServer = node.createChild("removeServer");
+        NodeBuilder remServer = getBuilder(node, "removeServer");
         remServer.setDisplayName("Remove Server");
         remServer.setAction(ServerActions.getRemoveServerAction(node, haystack));
         remServer.setSerializable(false);
         remServer.build();
 
-        NodeBuilder editServer = node.createChild("editServer");
+        NodeBuilder editServer = getBuilder(node, "editServer");
         editServer.setDisplayName("Edit Server");
         editServer.setAction(ServerActions.getEditAction(node));
         editServer.setSerializable(false);
         editServer.build();
 
-        NodeBuilder readNode = node.createChild("read");
+        NodeBuilder readNode = getBuilder(node, "read");
         readNode.setDisplayName("Read");
         readNode.setAction(Actions.getReadAction(haystack));
         readNode.setSerializable(false);
         readNode.build();
 
-        NodeBuilder evalNode = node.createChild("eval");
+        NodeBuilder evalNode = getBuilder(node, "eval");
         evalNode.setDisplayName("Evaluate");
         evalNode.setAction(Actions.getEvalAction(haystack));
         evalNode.setSerializable(false);
         evalNode.build();
 
-        NodeBuilder hisReadNode = node.createChild("hisRead");
+        NodeBuilder hisReadNode = getBuilder(node, "hisRead");
         hisReadNode.setDisplayName("History Read");
         hisReadNode.setAction(Actions.getHisReadAction(haystack));
         hisReadNode.setSerializable(false);
         hisReadNode.build();
 
-        NodeBuilder subNode = node.createChild("subscribe");
+        NodeBuilder subNode = getBuilder(node, "subscribe");
         subNode.setDisplayName("Subscribe");
         subNode.setAction(Actions.getSubscribeAction(haystack));
         subNode.setSerializable(false);
         subNode.build();
 
-        NodeBuilder writeNode = node.createChild("pointWrite");
+        NodeBuilder writeNode = getBuilder(node, "pointWrite");
         writeNode.setDisplayName("Point Write");
         writeNode.setAction(Actions.getPointWriteAction(haystack));
         writeNode.setSerializable(false);
         writeNode.build();
 
-        NodeBuilder invokeNode = node.createChild("invoke");
+        NodeBuilder invokeNode = getBuilder(node, "invoke");
         invokeNode.setDisplayName("Invoke");
         invokeNode.setAction(InvokeActions.getInvokeAction(haystack));
         invokeNode.setSerializable(false);
@@ -160,6 +160,14 @@ public class Utils {
         NodeListener listener = node.getListener();
         Handler<Node> handler = ListHandler.get();
         listener.setOnListHandler(handler);
+    }
+    
+    public static NodeBuilder getBuilder(Node parent, String childName) {
+    	if (parent.hasChild(childName)) {
+    		return parent.getChild(childName).createFakeBuilder();
+    	} else {
+    		return parent.createChild(childName);
+    	}
     }
 
     public static ValueType getHaystackTypes() {

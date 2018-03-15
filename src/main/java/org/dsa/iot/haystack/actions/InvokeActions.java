@@ -161,7 +161,7 @@ public class InvokeActions {
         }
 
         dis = StringUtils.encodeName(dis);
-        NodeBuilder b = node.createChild(dis);
+        NodeBuilder b = Utils.getBuilder(node, dis);
         b.setSerializable(false);
         b.setAction(getInvokeAction(haystack, id, dis, params));
         b.build();

@@ -15,8 +15,6 @@ import org.projecthaystack.client.HClient;
 import org.projecthaystack.io.HZincReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.dsa.iot.dslink.util.handler.Handler;
-
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
@@ -57,6 +55,18 @@ public class Main extends DSLinkHandler {
     public void onResponderInitialized(DSLink link) {
         this.link = link;
         LOGGER.info("Connected");
+        try {
+//	        SSLContext sc = SSLContext.getInstance("TLS");
+//	        sc.init(null, new TrustManager[] { new TrustAllX509TrustManager() }, new java.security.SecureRandom());
+//	        HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+//	        HttpsURLConnection.setDefaultHostnameVerifier( new HostnameVerifier(){
+//	            public boolean verify(String string,SSLSession ssls) {
+//	                return true;
+//	            }
+//	        });
+        } catch (Exception e) {
+        	
+        }
 
         Node superRoot = link.getNodeManager().getSuperRoot();
         Haystack.init(superRoot);
@@ -114,7 +124,7 @@ public class Main extends DSLinkHandler {
                         String[] pSplit = Arrays.copyOf(split, split.length - 1);
                         String parent = StringUtils.join(pSplit, "/");
                         Node node = manager.getNode(parent, true).getNode();
-                        NodeBuilder b = node.createChild("pointWrite");
+                        NodeBuilder b = Utils.getBuilder(node, "pointWrite");
                         b.setDisplayName("Point Write");
                         b.setSerializable(false);
                         b.setAction(Actions.getPointWriteAction(haystack, id, kind));
@@ -136,7 +146,7 @@ public class Main extends DSLinkHandler {
                         }
                         HZincReader reader = new HZincReader(zinc);
                         HGrid grid = reader.readGrid();
-                        Iterator it = grid.iterator();
+                        Iterator<?> it = grid.iterator();
                         boolean doThrow = true;
                         while (it.hasNext()) {
                             HRow r = (HRow) it.next();
@@ -179,4 +189,19 @@ public class Main extends DSLinkHandler {
     private static class Container {
         Node node;
     }
+    
+//    public class TrustAllX509TrustManager implements X509TrustManager {
+//        public X509Certificate[] getAcceptedIssuers() {
+//            return new X509Certificate[0];
+//        }
+//
+//        public void checkClientTrusted(java.security.cert.X509Certificate[] certs,
+//                String authType) {
+//        }
+//
+//        public void checkServerTrusted(java.security.cert.X509Certificate[] certs,
+//                String authType) {
+//        }
+//
+//    }
 }

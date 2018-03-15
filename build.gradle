@@ -5,18 +5,19 @@ apply plugin: 'java'
 mainClassName = 'org.dsa.iot.haystack.Main'
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
-version = '0.2.2-SNAPSHOT'
+version = '0.2.3-SNAPSHOT'
 
 repositories {
     mavenCentral()
     maven {
         url 'https://oss.sonatype.org/content/repositories/snapshots/'
     }
+    flatDir { dirs 'external' }
 }
  
 dependencies {
-    compile 'org.iot-dsa:dslink:0.16.0'
-    compile fileTree('external')
+    compile 'org.iot-dsa:dslink:0.18.4'
+    compile ':haystack-java:+'
 }
 
 run {
