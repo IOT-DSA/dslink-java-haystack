@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import org.dsa.iot.dslink.util.handler.Handler;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,7 @@ public class NavHelper {
 
     private final ScheduledThreadPoolExecutor stpe;
     private final Haystack haystack;
+    private final Map<Node, SubscriptionController> subControllers = new HashMap<Node, SubscriptionController>();
 
     public NavHelper(Haystack haystack) {
         this.stpe = Objects.createDaemonThreadPool();
@@ -237,16 +239,17 @@ public class NavHelper {
     }
 
     private void iterateRow(Node node, HRow row) {
-        handleRowValSubs(node, row);
+    	SubscriptionController subController = getSubController(node, row);
         Iterator<?> it = row.iterator();
         while (it.hasNext()) {
             Map.Entry entry = (Map.Entry) it.next();
             String name = (String) entry.getKey();
-            if ("id".equals(name)) {
-                continue;
-            }
             HVal val = (HVal) entry.getValue();
             Value value = Utils.hvalToVal(val);
+            
+            if (value == null) {
+            	continue;
+            }
 
             Node child = node.getChild(name);
             if (child == null) {
@@ -254,47 +257,26 @@ public class NavHelper {
             }
             child.setValueType(value.getType());
             child.setValue(value);
+            
+            NodeListener listener = child.getListener();
+            listener.setOnSubscribeHandler(subController.getSubHandler());
+            listener.setOnUnsubscribeHandler(subController.getUnsubHandler());
         }
     }
-
-    private void handleRowValSubs(final Node node, HRow row) {
-        final HVal id = row.get("id", false);
-        if (id == null) {
-            return;
+    
+    private SubscriptionController getSubController(Node node, HRow row) {
+    	SubscriptionController subController = subControllers.get(node);
+    	if (subController == null) {
+    		subController = new SubscriptionController(node, haystack);
+    		subControllers.put(node, subController);
+    	}
+    	
+    	final HVal id = row.get("id", false);
+        if (id != null) {
+            subController.setId((HRef) id);
         }
-        Node child = node.getChild("id");
-        if (child == null) {
-        	child = node.createChild("id").build();
-        }
-        Value val = Utils.hvalToVal(id);
-        child.setValueType(val.getType());
-        child.setValue(val);
-        NodeListener listener = child.getListener();
-        listener.setOnSubscribeHandler(new Handler<Node>() {
-            @Override
-            public void handle(Node event) {
-            	LOGGER.debug("Subscribing " + node.getDisplayName());
-                haystack.subscribe((HRef) id, node);
-            }
-        });
-
-        listener.setOnUnsubscribeHandler(new Handler<Node>() {
-            @Override
-            public void handle(Node event) {
-                Linkable link = event.getLink();
-                SubscriptionManager man = link.getSubscriptionManager();
-                Map<String, Node> children = event.getParent().getChildren();
-                if (children != null) {
-                    for (Node n : children.values()) {
-                        if (man.hasValueSub(n)) {
-                            return;
-                        }
-                    }
-                }
-                LOGGER.debug("Unsubscribing " + node.getDisplayName());
-                haystack.unsubscribe((HRef) id);
-            }
-        });
+    	
+    	return subController;
     }
 
     private String getName(HRow row) {
