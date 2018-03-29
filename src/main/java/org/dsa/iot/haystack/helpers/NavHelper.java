@@ -122,16 +122,15 @@ public class NavHelper {
 
             // Handle navId
             if (navId != null) {
-                String id = navId.toString();
-                LOGGER.debug("Received navId of {}", id);
+                LOGGER.debug("Received navId of {}", navId.toString());
 
                 // Ensure proper data is attached to child
-                child.setRoConfig("navId", new Value(id));
+                child.setRoConfig("navId", new Value(navId.toZinc()));
                 child.setMetaData(haystack);
 
                 // Navigate a level deeper
                 if (continueNav) {
-                    haystack.nav(id, new Handler<HGrid>() {
+                    haystack.nav(navId, new Handler<HGrid>() {
                         @Override
                         public void handle(HGrid event) {
                             iterateNavChildren(event, child, false);
@@ -212,16 +211,15 @@ public class NavHelper {
 
             // Handle navId
             if (navId != null) {
-                String id = navId.toString();
-                LOGGER.debug("Received navId of {}", id);
+                LOGGER.debug("Received navId of {}", navId.toString());
 
                 // Ensure proper data is attached to child
-                child.setRoConfig("navId", new Value(id));
+                child.setRoConfig("navId", new Value(navId.toZinc()));
                 child.setMetaData(haystack);
 
                 // Navigate a level deeper
                 if (continueNav) {
-                    haystack.nav(id, new Handler<HGrid>() {
+                    haystack.nav(navId, new Handler<HGrid>() {
                         @Override
                         public void handle(HGrid event) {
                             iterateNavChildren(event, child.getParent(), false);
