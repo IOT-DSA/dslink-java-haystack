@@ -259,6 +259,9 @@ public class NavHelper {
             NodeListener listener = child.getListener();
             listener.setOnSubscribeHandler(subController.getSubHandler());
             listener.setOnUnsubscribeHandler(subController.getUnsubHandler());
+            if (child.getLink().getSubscriptionManager().hasValueSub(child)) {
+            	subController.childSubscribed(child);
+            }
         }
     }
     

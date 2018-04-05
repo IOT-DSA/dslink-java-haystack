@@ -28,6 +28,7 @@ public class Main extends DSLinkHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
     private DSLink link;
+    private Object subFailLock = new Object();
 
     @Override
     public boolean isResponder() {
@@ -74,21 +75,42 @@ public class Main extends DSLinkHandler {
 
     @Override
     public Node onSubscriptionFail(String path) {
-        NodeManager manager = link.getNodeManager();
+    	NodeManager manager = link.getNodeManager();
         String[] split = NodeManager.splitPath(path);
-
-        Node node = manager.getNode(path, true).getNode();
-        HRef id;
-        {
-            String sID = split[split.length - 2];
-            sID = StringUtils.decodeName(sID);
-            id = HRef.make(sID);
-        }
-
         Node superRoot = manager.getSuperRoot();
-        Haystack haystack = superRoot.getChild(split[0]).getMetaData();
-        haystack.subscribe(id, node.getParent());
-        return node;
+        try {
+			Thread.sleep(2000);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+		}
+        synchronized(subFailLock) {
+        	Node node = manager.getNode(path, false, false).getNode();
+        	if (node != null) {
+        		return node;
+        	}
+        	Node n = superRoot;
+            int i = 0;
+            while (i < split.length) {
+            	Node next = n.getChild(split[i], false);
+            	int tries = 0;
+            	while (next == null && tries < 6) {
+            		tries++;
+            		try {
+            			subFailLock.wait(200);
+            		} catch (InterruptedException e) {
+            			// TODO Auto-generated catch block
+            		}
+            		next = n.getChild(split[i], false);
+            	}
+            	if (next == null) {
+            		return null;
+            	}
+            	n = next;
+            	n.getListener().postListUpdate();
+            	i++;
+            }
+            return n;
+        }
     }
 
     @Override
