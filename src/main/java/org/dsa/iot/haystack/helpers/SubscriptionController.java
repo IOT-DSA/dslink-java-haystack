@@ -25,22 +25,33 @@ public class SubscriptionController {
 		this.haystack = haystack;
 	}
 	
-	synchronized public void childSubscribed(Node child) {
-		boolean wasEmpty = subscribedChildren.isEmpty();
-		subscribedChildren.add(child);
+	public void childSubscribed(Node child) {
+		boolean wasEmpty;
+		HRef id;
+		synchronized(this) {
+			wasEmpty = subscribedChildren.isEmpty();
+			subscribedChildren.add(child);
+			id = this.id;
+		}
 		if (wasEmpty) {			
 			if (id != null) {
-				LOGGER.debug("Subscribing " + node.getDisplayName());
+				LOGGER.info("Subscribing " + node.getDisplayName());
 				haystack.subscribe(id, node);
 			}
 		}
 	}
 	
-	synchronized public void childUnsubscribed(Node child) {
-		subscribedChildren.remove(child);
-		if (subscribedChildren.isEmpty()) {
+	public void childUnsubscribed(Node child) {
+		boolean empty;
+		HRef id;
+		synchronized (this) {
+			subscribedChildren.remove(child);
+			empty = subscribedChildren.isEmpty();
+			id = this.id;
+		}
+		if (empty) {
 			if (id != null) {
-				LOGGER.debug("Unsubscribing " + node.getDisplayName());
+				LOGGER.info("Unsubscribing " + node.getDisplayName());
 				haystack.unsubscribe(id);
 			}
 		}
