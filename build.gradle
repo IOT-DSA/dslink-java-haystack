@@ -16,7 +16,7 @@ repositories {
 }
  
 dependencies {
-    compile 'org.iot-dsa:dslink:0.18.4'
+    compile 'org.iot-dsa:dslink:0.18.5'
     compile ':haystack-java:+'
 }
 
