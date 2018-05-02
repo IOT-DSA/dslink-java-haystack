@@ -61,8 +61,8 @@ public class ServerActions {
             p.setEditorType(EditorType.PASSWORD);
             a.addParameter(p);
         }
-        a.addParameter(new Parameter("connect timeout", ValueType.NUMBER, new Value(60)));
-        a.addParameter(new Parameter("read timeout", ValueType.NUMBER, new Value(60)));
+        a.addParameter(new Parameter("connect timeout", ValueType.NUMBER, new Value(60)).setDescription("Connect timeout in seconds"));
+        a.addParameter(new Parameter("read timeout", ValueType.NUMBER, new Value(60)).setDescription("Read timeout in seconds"));
         return a;
     }
 
@@ -143,8 +143,8 @@ public class ServerActions {
 
             a.addParameter(p);
         }
-        a.addParameter(new Parameter("connect timeout", ValueType.NUMBER, node.getConfig("connect timeout")));
-        a.addParameter(new Parameter("read timeout", ValueType.NUMBER, node.getConfig("read timeout")));
+        a.addParameter(new Parameter("connect timeout", ValueType.NUMBER, node.getConfig("connect timeout")).setDescription("Connect timeout in seconds"));
+        a.addParameter(new Parameter("read timeout", ValueType.NUMBER, node.getConfig("read timeout")).setDescription("Read timeout in seconds"));
         
         return a;
     }
