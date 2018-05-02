@@ -27,6 +27,8 @@ public class ServerActions {
                 Value vUrl = event.getParameter("url", vt);
                 Value vUser = event.getParameter("username");
                 Value vPass = event.getParameter("password");
+                Value vConnTimeout = event.getParameter("connect timeout");
+                Value vReadTimeout = event.getParameter("read timeout");
 
                 String name = vName.getString();
                 String url = vUrl.getString();
@@ -41,6 +43,8 @@ public class ServerActions {
                     char[] pass = vPass.getString().toCharArray();
                     builder.setPassword(pass);
                 }
+                builder.setConfig("connect timeout", vConnTimeout);
+                builder.setConfig("read timeout", vReadTimeout);
                 Node node = builder.build();
 
                 Haystack haystack = new Haystack(node);
@@ -57,6 +61,8 @@ public class ServerActions {
             p.setEditorType(EditorType.PASSWORD);
             a.addParameter(p);
         }
+        a.addParameter(new Parameter("connect timeout", ValueType.NUMBER, new Value(60)));
+        a.addParameter(new Parameter("read timeout", ValueType.NUMBER, new Value(60)));
         return a;
     }
 
@@ -81,6 +87,8 @@ public class ServerActions {
                 Value vUser = event.getParameter("Username", ValueType.STRING);
                 Value vPass = event.getParameter("Password");
                 Value vPR = event.getParameter("Poll Rate", ValueType.NUMBER);
+                Value vConnTimeout = event.getParameter("connect timeout");
+                Value vReadTimeout = event.getParameter("read timeout");
 
                 String url = vUrl.getString();
                 String user = vUser.getString();
@@ -96,9 +104,13 @@ public class ServerActions {
                     vPR.set(1);
                 }
                 node.setConfig("pollRate", vPR);
+                node.setConfig("connect timeout", vConnTimeout);
+                node.setConfig("read timeout", vReadTimeout);
                 int pollRate = vPR.getNumber().intValue();
+                int connTimeout = (int) (vConnTimeout.getNumber().doubleValue() * 1000);
+                int readTimeout = (int) (vReadTimeout.getNumber().doubleValue() * 1000);
 
-                haystack.editConnection(url, user, pass, pollRate);
+                haystack.editConnection(url, user, pass, pollRate, connTimeout, readTimeout);
             }
         });
         {
@@ -131,6 +143,9 @@ public class ServerActions {
 
             a.addParameter(p);
         }
+        a.addParameter(new Parameter("connect timeout", ValueType.NUMBER, node.getConfig("connect timeout")));
+        a.addParameter(new Parameter("read timeout", ValueType.NUMBER, node.getConfig("read timeout")));
+        
         return a;
     }
 

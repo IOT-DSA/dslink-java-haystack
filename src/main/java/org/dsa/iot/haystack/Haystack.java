@@ -53,6 +53,16 @@ public class Haystack {
             if (node.getConfig("pollRate") == null) {
                 node.setConfig("pollRate", new Value(5));
             }
+            
+            Value cto = node.getConfig("connect timeout");
+            if (cto == null) {
+            	node.setConfig("connect timeout", new Value(60));
+            }
+            
+            Value rto = node.getConfig("read timeout");
+            if (rto == null) {
+            	node.setConfig("read timeout", new Value(60));
+            }
         }
         this.stpe = Objects.createDaemonThreadPool();
         this.node = node;
@@ -92,8 +102,10 @@ public class Haystack {
     public void editConnection(String url,
                                String user,
                                String pass,
-                               int pollRate) {
-        conn.editConnection(url, user, pass);
+                               int pollRate,
+                               int connTimeout,
+                               int readTimeout) {
+        conn.editConnection(url, user, pass, connTimeout, readTimeout);
         setupPoll(pollRate);
 
         Action a = ServerActions.getEditAction(node);

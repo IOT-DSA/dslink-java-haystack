@@ -36,6 +36,8 @@ public class ConnectionHelper {
     private volatile String username;
     private volatile char[] password;
     private volatile String url;
+    private volatile int connectTimeout;
+    private volatile int readTimeout;
 
     private ScheduledFuture<?> connectFuture;
     private HClient client;
@@ -50,15 +52,19 @@ public class ConnectionHelper {
         username = node.getConfig("username").getString();
         password = node.getPassword();
         url = node.getConfig("url").getString();
+        connectTimeout = (int) (node.getConfig("connect timeout").getNumber().doubleValue() * 1000);
+        readTimeout = (int) (node.getConfig("read timeout").getNumber().doubleValue() * 1000);
     }
 
-    public void editConnection(String url, String user, String pass) {
+    public void editConnection(String url, String user, String pass, int connTimeout, int readTimeout) {
         close();
         this.url = url;
         this.username = user;
         if (pass != null) {
             this.password = pass.toCharArray();
         }
+        this.connectTimeout = connTimeout;
+        this.readTimeout = readTimeout;
         getClient(null);
     }
 
@@ -180,7 +186,7 @@ public class ConnectionHelper {
                     pass = String.valueOf(password);
                 }
                 synchronized (lock) {
-                    client = HClient.open(url, username, pass);
+                    client = HClient.open(url, username, pass, connectTimeout, readTimeout);
                     LOGGER.info("Opened connection to {}", url);
                     connectFuture.cancel(false);
                     connectFuture = null;
