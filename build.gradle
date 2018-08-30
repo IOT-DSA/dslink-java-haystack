@@ -1,11 +1,11 @@
 apply plugin: 'application'
 apply plugin: 'findbugs'
-apply plugin: 'java'
+apply plugin: 'java-library'
 
 mainClassName = 'org.dsa.iot.haystack.Main'
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
-version = '0.2.8-SNAPSHOT'
+version = '0.2.9-SNAPSHOT'
 
 repositories {
     mavenCentral()
@@ -16,7 +16,7 @@ repositories {
 }
  
 dependencies {
-    compile 'org.iot-dsa:dslink:0.18.5'
+    api 'org.iot-dsa:dslink:0.20.1'
     compile ':haystack-java:+'
 }
 
@@ -30,6 +30,10 @@ tasks.withType(FindBugs) {
         xml.enabled = false
         html.enabled = true
     }
+}
+
+wrapper {
+    gradleVersion = '4.10'
 }
 
 applicationDistribution.from new File(project.projectDir, "/dslink.json")
