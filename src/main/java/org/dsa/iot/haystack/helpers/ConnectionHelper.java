@@ -1,6 +1,7 @@
 package org.dsa.iot.haystack.helpers;
 
 import org.dsa.iot.dslink.node.Node;
+import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.util.Objects;
 import org.projecthaystack.HGrid;
 import org.projecthaystack.HWatch;
@@ -11,6 +12,7 @@ import org.projecthaystack.client.HClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.dsa.iot.dslink.util.handler.Handler;
+import org.dsa.iot.haystack.Utils;
 
 import java.util.HashSet;
 import java.util.Queue;
@@ -38,6 +40,7 @@ public class ConnectionHelper {
     private volatile String url;
     private volatile int connectTimeout;
     private volatile int readTimeout;
+    private Node statusNode;
 
     private ScheduledFuture<?> connectFuture;
     private HClient client;
@@ -54,6 +57,7 @@ public class ConnectionHelper {
         url = node.getConfig("url").getString();
         connectTimeout = (int) (node.getConfig("connect timeout").getNumber().doubleValue() * 1000);
         readTimeout = (int) (node.getConfig("read timeout").getNumber().doubleValue() * 1000);
+        statusNode = Utils.getStatusNode(node);
     }
 
     public void editConnection(String url, String user, String pass, int connTimeout, int readTimeout) {
@@ -213,11 +217,15 @@ public class ConnectionHelper {
                         handler.handle(client);
                     }
                 }
+                statusNode.setValue(new Value("Connected"));
                 if (onConnected != null) {
                     onConnected.handle(client);
                 }
             } catch (RuntimeException e) {
-                LOGGER.warn("Unable to connect to {} : {} : {}", url, e.getMessage(), e.getCause().getMessage());
+            	Throwable cause = e.getCause();
+            	String err = String.format("Unable to connect to %s : %s : %s", url, e.getMessage(), cause != null ? cause.getMessage() : "");
+                statusNode.setValue(new Value(err));
+            	LOGGER.warn(err);
             }
         }
     }

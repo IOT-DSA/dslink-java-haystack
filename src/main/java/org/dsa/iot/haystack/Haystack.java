@@ -68,6 +68,7 @@ public class Haystack {
         this.node = node;
         this.subs = new ConcurrentHashMap<>();
         this.navHelper = new NavHelper(this);
+        Utils.getStatusNode(node);
         this.conn = new ConnectionHelper(node, new Handler<Void>() {
             @Override
             public void handle(Void event) {
@@ -302,8 +303,8 @@ public class Haystack {
         if (children != null) {
             for (Node child : children.values()) {
                 if (child.getAction() == null && !"sys".equals(child.getName())) {
+                	child.clearChildren();
                     Haystack haystack = new Haystack(child);
-                    child.clearChildren();
                     Utils.initCommon(haystack, child);
                 }
             }

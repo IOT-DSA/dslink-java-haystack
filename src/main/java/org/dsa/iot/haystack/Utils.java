@@ -155,11 +155,29 @@ public class Utils {
         invokeNode.setAction(InvokeActions.getInvokeAction(haystack));
         invokeNode.setSerializable(false);
         invokeNode.build();
-
+        
         node.setHasChildren(true);
         NodeListener listener = node.getListener();
         Handler<Node> handler = ListHandler.get();
         listener.setOnListHandler(handler);
+    }
+    
+    public static Node getStatusNode(Node node) {
+    	synchronized(node) {
+    		Node statusNode = node.getChild("Status", false);
+        	if (statusNode == null) {
+        		statusNode = createStatusNode(node);
+        	}
+        	return statusNode;
+    	}
+    }
+    
+    private static Node createStatusNode(Node node) {
+    	Node statusNode = node.createChild("Status", false)
+    			.setValueType(ValueType.STRING)
+    			.setValue(new Value("Not Connected")).build();
+    	statusNode.setSerializable(false);
+        return statusNode;
     }
     
     public static NodeBuilder getBuilder(Node parent, String childName) {
