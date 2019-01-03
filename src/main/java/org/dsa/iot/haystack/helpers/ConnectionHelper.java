@@ -62,6 +62,7 @@ public class ConnectionHelper {
 
     public void editConnection(String url, String user, String pass, int connTimeout, int readTimeout) {
         close();
+        statusNode.setValue(new Value("Not Connected"));
         this.url = url;
         this.username = user;
         if (pass != null) {
@@ -95,6 +96,9 @@ public class ConnectionHelper {
     public void getWatch(final StateHandler<HWatch> onWatchReceived) {
         try {
             synchronized (lock) {
+            	if (!watch.isOpen()) {
+            		close();
+            	}
                 if (watch == null) {
                     getClient(new StateHandler<HClient>() {
                         @Override
