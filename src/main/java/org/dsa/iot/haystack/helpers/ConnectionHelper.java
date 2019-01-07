@@ -96,7 +96,7 @@ public class ConnectionHelper {
     public void getWatch(final StateHandler<HWatch> onWatchReceived) {
         try {
             synchronized (lock) {
-            	if (!watch.isOpen()) {
+            	if (watch != null && !watch.isOpen()) {
             		close();
             	}
                 if (watch == null) {
