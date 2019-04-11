@@ -60,7 +60,7 @@ public class ConnectionHelper {
         statusNode = Utils.getStatusNode(node);
     }
 
-    public void editConnection(String url, String user, String pass, int connTimeout, int readTimeout) {
+    public void editConnection(String url, String user, String pass, int connTimeout, int readTimeout, StateHandler<HClient> onClientRecieved) {
         close();
         statusNode.setValue(new Value("Not Connected"));
         this.url = url;
@@ -70,7 +70,7 @@ public class ConnectionHelper {
         }
         this.connectTimeout = connTimeout;
         this.readTimeout = readTimeout;
-        getClient(null);
+        getClient(onClientRecieved);
     }
 
     public void close() {

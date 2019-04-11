@@ -29,6 +29,7 @@ public class ServerActions {
                 Value vPass = event.getParameter("password");
                 Value vConnTimeout = event.getParameter("connect timeout");
                 Value vReadTimeout = event.getParameter("read timeout");
+                Value vExposeAuth = event.getParameter("expose auth token");
 
                 String name = vName.getString();
                 String url = vUrl.getString();
@@ -45,6 +46,7 @@ public class ServerActions {
                 }
                 builder.setConfig("connect timeout", vConnTimeout);
                 builder.setConfig("read timeout", vReadTimeout);
+                builder.setConfig("expose auth token", vExposeAuth);
                 Node node = builder.build();
 
                 Haystack haystack = new Haystack(node);
@@ -63,6 +65,7 @@ public class ServerActions {
         }
         a.addParameter(new Parameter("connect timeout", ValueType.NUMBER, new Value(60)).setDescription("Connect timeout in seconds"));
         a.addParameter(new Parameter("read timeout", ValueType.NUMBER, new Value(60)).setDescription("Read timeout in seconds"));
+        a.addParameter(new Parameter("expose auth token", ValueType.BOOL, new Value(false)));
         return a;
     }
 
@@ -89,6 +92,7 @@ public class ServerActions {
                 Value vPR = event.getParameter("Poll Rate", ValueType.NUMBER);
                 Value vConnTimeout = event.getParameter("connect timeout");
                 Value vReadTimeout = event.getParameter("read timeout");
+                Value vExposeAuth = event.getParameter("expose auth token");
 
                 String url = vUrl.getString();
                 String user = vUser.getString();
@@ -106,6 +110,7 @@ public class ServerActions {
                 node.setConfig("pollRate", vPR);
                 node.setConfig("connect timeout", vConnTimeout);
                 node.setConfig("read timeout", vReadTimeout);
+                node.setConfig("expose auth token", vExposeAuth);
                 int pollRate = vPR.getNumber().intValue();
                 int connTimeout = (int) (vConnTimeout.getNumber().doubleValue() * 1000);
                 int readTimeout = (int) (vReadTimeout.getNumber().doubleValue() * 1000);
@@ -145,6 +150,7 @@ public class ServerActions {
         }
         a.addParameter(new Parameter("connect timeout", ValueType.NUMBER, node.getConfig("connect timeout")).setDescription("Connect timeout in seconds"));
         a.addParameter(new Parameter("read timeout", ValueType.NUMBER, node.getConfig("read timeout")).setDescription("Read timeout in seconds"));
+        a.addParameter(new Parameter("expose auth token", ValueType.BOOL, node.getConfig("expose auth token")));
         
         return a;
     }

@@ -11,11 +11,13 @@ import org.dsa.iot.haystack.helpers.ConnectionHelper;
 import org.dsa.iot.haystack.helpers.NavHelper;
 import org.dsa.iot.haystack.helpers.StateHandler;
 import org.projecthaystack.*;
+import org.projecthaystack.auth.AuthClientContext;
 import org.projecthaystack.client.HClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.dsa.iot.dslink.util.handler.Handler;
 
+import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
@@ -93,11 +95,16 @@ public class Haystack {
             }
         });
         // Ensure subscriptions are subscribed
-        conn.getClient(null);
+        conn.getClient(new AuthExtractor(this));
     }
 
     public Value getPollRate() {
         return node.getConfig("pollRate");
+    }
+    
+    public boolean shouldExposeAuth() {
+        Value vExposeAuth = node.getConfig("expose auth token");
+        return vExposeAuth != null && vExposeAuth.getBool();
     }
 
     public void editConnection(String url,
@@ -106,11 +113,45 @@ public class Haystack {
                                int pollRate,
                                int connTimeout,
                                int readTimeout) {
-        conn.editConnection(url, user, pass, connTimeout, readTimeout);
+        conn.editConnection(url, user, pass, connTimeout, readTimeout, new AuthExtractor(this));
         setupPoll(pollRate);
 
         Action a = ServerActions.getEditAction(node);
         node.getChild("editServer").setAction(a);
+        if (!shouldExposeAuth()) {
+            Utils.deleteAuthNode(node);
+        }
+    }
+    
+    private static class AuthExtractor extends StateHandler<HClient> {
+        private Haystack haystack;
+
+        public AuthExtractor(Haystack haystack) {
+            this.haystack = haystack;
+        }
+        
+        @Override
+        public void handle(HClient event) {
+            try {
+                Field f = event.getClass().getDeclaredField("auth");
+                f.setAccessible(true);
+                AuthClientContext auth = (AuthClientContext) f.get(event);
+                String authStr = auth.headers.get("Authorization").toString();
+                String[] arr = authStr.split("=");
+                haystack.gotAuthToken(arr[arr.length - 1]);
+            } catch (Exception e) {
+                LOGGER.warn("error attempting to extract auth token", e);
+            } 
+        }
+    }
+    
+    public void gotAuthToken(String authString) {
+        if (shouldExposeAuth()) {
+            Node authNode = Utils.getAuthNode(node);
+            authNode.setValue(new Value(authString));
+        } else {
+            Utils.deleteAuthNode(node);
+        }
     }
 
     public void nav(HVal navId, Handler<HGrid> onComplete) {

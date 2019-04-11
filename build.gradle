@@ -5,7 +5,7 @@ apply plugin: 'java-library'
 mainClassName = 'org.dsa.iot.haystack.Main'
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
-version = '0.2.12'
+version = '0.2.12-b'
 
 repositories {
     mavenCentral()

@@ -162,6 +162,28 @@ public class Utils {
         listener.setOnListHandler(handler);
     }
     
+    public static Node getAuthNode(Node node) {
+        synchronized(node) {
+            Node authNode = node.getChild("Auth", false);
+            if (authNode == null) {
+                authNode = createAuthNode(node);
+            }
+            return authNode;
+        }
+    }
+    
+    private static Node createAuthNode(Node node) {
+        Node authNode = node.createChild("Auth", false)
+                .setValueType(ValueType.STRING)
+                .setValue(new Value("")).build();
+        authNode.setSerializable(false);
+        return authNode;
+    }
+    
+    public static void deleteAuthNode(Node node) {
+        node.removeChild("Auth", false);
+    }
+
     public static Node getStatusNode(Node node) {
     	synchronized(node) {
     		Node statusNode = node.getChild("Status", false);
