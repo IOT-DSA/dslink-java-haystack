@@ -1,5 +1,8 @@
 # Misc
 .DS_Store
+.key
+nodes.json
+nodes.json.bak
 
 # Gradle
 .gradle

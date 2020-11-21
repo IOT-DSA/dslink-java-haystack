@@ -1,26 +1,32 @@
 package org.dsa.iot.haystack;
 
-import org.dsa.iot.dslink.node.Node;
-import org.dsa.iot.dslink.node.NodeBuilder;
-import org.dsa.iot.dslink.node.actions.Action;
-import org.dsa.iot.dslink.node.value.Value;
-import org.dsa.iot.dslink.util.Objects;
-import org.dsa.iot.dslink.util.StringUtils;
-import org.dsa.iot.haystack.actions.ServerActions;
-import org.dsa.iot.haystack.helpers.ConnectionHelper;
-import org.dsa.iot.haystack.helpers.NavHelper;
-import org.dsa.iot.haystack.helpers.StateHandler;
-import org.projecthaystack.*;
-import org.projecthaystack.client.HClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.dsa.iot.dslink.util.handler.Handler;
-
-import java.util.*;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import org.dsa.iot.dslink.node.Node;
+import org.dsa.iot.dslink.node.NodeBuilder;
+import org.dsa.iot.dslink.node.actions.Action;
+import org.dsa.iot.dslink.node.value.Value;
+import org.dsa.iot.dslink.node.value.ValueType;
+import org.dsa.iot.dslink.util.Objects;
+import org.dsa.iot.dslink.util.StringUtils;
+import org.dsa.iot.dslink.util.handler.Handler;
+import org.dsa.iot.haystack.actions.ServerActions;
+import org.dsa.iot.haystack.helpers.ConnectionHelper;
+import org.dsa.iot.haystack.helpers.NavHelper;
+import org.dsa.iot.haystack.helpers.StateHandler;
+import org.projecthaystack.HGrid;
+import org.projecthaystack.HGridBuilder;
+import org.projecthaystack.HRef;
+import org.projecthaystack.HRow;
+import org.projecthaystack.HVal;
+import org.projecthaystack.HWatch;
+import org.projecthaystack.client.HClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Samuel Grenier
@@ -28,14 +34,12 @@ import java.util.concurrent.TimeUnit;
 public class Haystack {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Haystack.class);
-
-    private final Map<String, Node> subs;
+    private ConnectionHelper conn;
     private final NavHelper navHelper;
     private final Node node;
-
-    private final ScheduledThreadPoolExecutor stpe;
     private ScheduledFuture<?> pollFuture;
-    private ConnectionHelper conn;
+    private final ScheduledThreadPoolExecutor stpe;
+    private final Map<String, Node> subs;
     private boolean watchEnabled;
 
     public Haystack(final Node node) {
@@ -45,25 +49,34 @@ public class Haystack {
             node.setRoConfig("lu", val);
         }
         node.setMetaData(this);
-        {
-            Value pr;
-            if ((pr = node.removeConfig("pr")) != null) {
-                node.setConfig("pollRate", pr);
-            }
-            if (node.getConfig("pollRate") == null) {
-                node.setConfig("pollRate", new Value(5));
-            }
-            
-            Value cto = node.getConfig("connect timeout");
-            if (cto == null) {
-            	node.setConfig("connect timeout", new Value(60));
-            }
-            
-            Value rto = node.getConfig("read timeout");
-            if (rto == null) {
-            	node.setConfig("read timeout", new Value(60));
-            }
+
+        Value enabled = node.getConfig("enabled");
+        if (enabled == null) {
+            enabled = new Value(true);
+            node.setConfig("enabled", enabled);
+        } else if (enabled.getType() == ValueType.NUMBER) {
+            enabled = new Value(enabled.getNumber().intValue() != 0);
+            node.setConfig("enabled", enabled);
         }
+
+        Value pr;
+        if ((pr = node.removeConfig("pr")) != null) {
+            node.setConfig("pollRate", pr);
+        }
+        if (node.getConfig("pollRate") == null) {
+            node.setConfig("pollRate", new Value(5));
+        }
+
+        Value cto = node.getConfig("connect timeout");
+        if (cto == null) {
+            node.setConfig("connect timeout", new Value(60));
+        }
+
+        Value rto = node.getConfig("read timeout");
+        if (rto == null) {
+            node.setConfig("read timeout", new Value(60));
+        }
+
         this.stpe = Objects.createDaemonThreadPool();
         this.node = node;
         this.subs = new ConcurrentHashMap<>();
@@ -92,41 +105,21 @@ public class Haystack {
                 pollFuture = null;
             }
         });
-        // Ensure subscriptions are subscribed
-        conn.getClient(null);
-    }
-
-    public Value getPollRate() {
-        return node.getConfig("pollRate");
-    }
-
-    public void editConnection(String url,
-                               String user,
-                               String pass,
-                               int pollRate,
-                               int connTimeout,
-                               int readTimeout) {
-        conn.editConnection(url, user, pass, connTimeout, readTimeout);
-        setupPoll(pollRate);
-
-        Action a = ServerActions.getEditAction(node);
-        node.getChild("editServer").setAction(a);
-    }
-
-    public void nav(HVal navId, Handler<HGrid> onComplete) {
-        HGrid grid = HGrid.EMPTY;
-        if (navId != null) {
-            HGridBuilder builder = new HGridBuilder();
-            builder.addCol("navId");
-            builder.addRow(new HVal[] {navId});
-            grid = builder.toGrid();
+        if (enabled.getBool()) {
+            // Ensure subscriptions are subscribed
+            conn.getClient(null);
+        } else {
+            Utils.getStatusNode(node).setValue(new Value("Disabled"));
+            stop();
         }
-        call("nav", grid, onComplete);
     }
 
     public void call(final String op,
-               final HGrid grid,
-               final Handler<HGrid> onComplete) {
+                     final HGrid grid,
+                     final Handler<HGrid> onComplete) {
+        if (!isEnabled()) {
+            return;
+        }
         conn.getClient(new StateHandler<HClient>() {
             @Override
             public void handle(HClient event) {
@@ -138,34 +131,40 @@ public class Haystack {
         });
     }
 
-    public void read(final String filter,
-              final int limit,
-              final Handler<HGrid> onComplete) {
-        conn.getClient(new StateHandler<HClient>() {
-            @Override
-            public void handle(HClient event) {
-                HGrid ret = event.readAll(filter, limit);
-                if (onComplete != null) {
-                    onComplete.handle(ret);
-                }
-            }
-        });
+    public void editConnection(String url,
+                               String user,
+                               String pass,
+                               int pollRate,
+                               int connTimeout,
+                               int readTimeout,
+                               boolean enabled) {
+        if (!enabled) {
+            stop();
+            Utils.getStatusNode(node).setValue(new Value("Disabled"));
+        } else {
+            conn.editConnection(url, user, pass, connTimeout, readTimeout);
+            setupPoll(pollRate);
+        }
+
+        Action a = ServerActions.getEditAction(node);
+        node.getChild("editServer").setAction(a);
     }
 
     public void eval(final String expr, final Handler<HGrid> onComplete) {
         conn.getClient(new StateHandler<HClient>() {
             @Override
             public void handle(HClient event) {
-                HGrid ret = event.eval(expr);
-                if (onComplete != null) {
-                    onComplete.handle(ret);
+                try {
+                    HGrid ret = event.eval(expr);
+                    if (onComplete != null) {
+                        onComplete.handle(ret);
+                    }
+                } catch (RuntimeException x) {
+                    LOGGER.error(expr, x);
+                    throw x;
                 }
             }
         });
-    }
-
-    public ScheduledThreadPoolExecutor getStpe() {
-        return stpe;
     }
 
     public ConnectionHelper getConnHelper() {
@@ -176,35 +175,61 @@ public class Haystack {
         return navHelper;
     }
 
-    public void subscribe(HRef id, Node node) {
-        subscribe(id, node, true);
+    public Value getPollRate() {
+        return node.getConfig("pollRate");
     }
 
-    private void subscribe(final HRef id, Node node, boolean add) {
-        if (!watchEnabled) {
-            return;
-        }
-        if (add) {
-            subs.put(id.toString(), node);
-        }
+    public ScheduledThreadPoolExecutor getStpe() {
+        return stpe;
+    }
 
-        conn.getWatch(new StateHandler<HWatch>() {
-            @Override
-            public void handle(HWatch event) {
-                event.sub(new HRef[]{id});
+    public static void init(Node superRoot) {
+        NodeBuilder builder = Utils.getBuilder(superRoot, "addServer");
+        builder.setDisplayName("Add Server");
+        builder.setSerializable(false);
+        builder.setAction(ServerActions.getAddServerAction(superRoot)).build();
+
+        Map<String, Node> children = superRoot.getChildren();
+        if (children != null) {
+            for (Node child : children.values()) {
+                if (child.getAction() == null && !"sys".equals(child.getName())) {
+                    child.clearChildren();
+                    Haystack haystack = new Haystack(child);
+                    Utils.initCommon(haystack, child);
+                }
             }
-        });
+        }
     }
 
-    public void unsubscribe(final HRef id) {
-        if (!watchEnabled) {
-            return;
+    public boolean isEnabled() {
+        Value enabled = node.getConfig("enabled");
+        if (enabled != null) {
+            return enabled.getBool();
         }
-        subs.remove(id.toString());
-        conn.getWatch(new StateHandler<HWatch>() {
+        return false;
+    }
+
+    public void nav(HVal navId, Handler<HGrid> onComplete) {
+        HGrid grid = HGrid.EMPTY;
+        if (navId != null) {
+            HGridBuilder builder = new HGridBuilder();
+            builder.addCol("navId");
+            builder.addRow(new HVal[]{navId});
+            grid = builder.toGrid();
+        }
+        call("nav", grid, onComplete);
+    }
+
+    public void read(final String filter,
+                     final int limit,
+                     final Handler<HGrid> onComplete) {
+        conn.getClient(new StateHandler<HClient>() {
             @Override
-            public void handle(HWatch event) {
-                event.unsub(new HRef[]{id});
+            public void handle(HClient event) {
+                HGrid ret = event.readAll(filter, limit);
+                if (onComplete != null) {
+                    onComplete.handle(ret);
+                }
             }
         });
     }
@@ -220,28 +245,27 @@ public class Haystack {
         conn.close();
     }
 
+    public void subscribe(HRef id, Node node) {
+        subscribe(id, node, true);
+    }
+
+    public void unsubscribe(final HRef id) {
+        if (!watchEnabled) {
+            return;
+        }
+        subs.remove(id.toString());
+        conn.getWatch(new StateHandler<HWatch>() {
+            @Override
+            public void handle(HWatch event) {
+                event.unsub(new HRef[]{id});
+            }
+        });
+    }
+
     void destroy() {
         stop();
         stpe.shutdownNow();
         navHelper.destroy();
-    }
-
-    private void setupPoll(int time) {
-        if (pollFuture != null) {
-            pollFuture.cancel(false);
-            pollFuture = null;
-        }
-
-        pollFuture = stpe.scheduleWithFixedDelay(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    poll();
-                } catch (Exception e) {
-                    LOGGER.error("", e);
-                }
-            }
-        }, time, time, TimeUnit.SECONDS);
     }
 
     private void poll() {
@@ -280,7 +304,7 @@ public class Haystack {
                                 child.setValueType(value.getType());
                                 child.setValue(value);
                             } else {
-                            	NodeBuilder b = Utils.getBuilder(node, encoded);
+                                NodeBuilder b = Utils.getBuilder(node, encoded);
                                 b.setValueType(value.getType());
                                 b.setValue(value);
                                 Node n = b.build();
@@ -293,21 +317,37 @@ public class Haystack {
         });
     }
 
-    public static void init(Node superRoot) {
-    	NodeBuilder builder = Utils.getBuilder(superRoot, "addServer");
-        builder.setDisplayName("Add Server");
-        builder.setSerializable(false);
-        builder.setAction(ServerActions.getAddServerAction(superRoot)).build();
+    private void setupPoll(int time) {
+        if (pollFuture != null) {
+            pollFuture.cancel(false);
+            pollFuture = null;
+        }
 
-        Map<String, Node> children = superRoot.getChildren();
-        if (children != null) {
-            for (Node child : children.values()) {
-                if (child.getAction() == null && !"sys".equals(child.getName())) {
-                	child.clearChildren();
-                    Haystack haystack = new Haystack(child);
-                    Utils.initCommon(haystack, child);
+        pollFuture = stpe.scheduleWithFixedDelay(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    poll();
+                } catch (Exception e) {
+                    LOGGER.error("", e);
                 }
             }
+        }, time, time, TimeUnit.SECONDS);
+    }
+
+    private void subscribe(final HRef id, Node node, boolean add) {
+        if (!watchEnabled) {
+            return;
         }
+        if (add) {
+            subs.put(id.toString(), node);
+        }
+
+        conn.getWatch(new StateHandler<HWatch>() {
+            @Override
+            public void handle(HWatch event) {
+                event.sub(new HRef[]{id});
+            }
+        });
     }
 }
