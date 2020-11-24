@@ -41,6 +41,9 @@ public class InvokeActions {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(final ActionResult event) {
+                if (!haystack.isEnabled()) {
+                    throw new IllegalStateException("Disabled");
+                }
                 final CountDownLatch latch = new CountDownLatch(1);
                 haystack.getConnHelper().getClient(new StateHandler<HClient>() {
                     @Override
@@ -79,6 +82,9 @@ public class InvokeActions {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(final ActionResult event) {
+                if (!haystack.isEnabled()) {
+                    throw new IllegalStateException("Disabled");
+                }
                 final CountDownLatch latch = new CountDownLatch(1);
                 haystack.getConnHelper().getClient(new StateHandler<HClient>() {
                     @Override

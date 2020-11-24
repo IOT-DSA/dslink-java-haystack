@@ -4,7 +4,7 @@ apply plugin: 'java-library'
 mainClassName = 'org.dsa.iot.haystack.Main'
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
-version = '0.3.0'
+version = '0.3.0-SNAPSHOT'
 
 repositories {
     mavenLocal()
@@ -13,7 +13,7 @@ repositories {
  
 dependencies {
     api 'org.iot-dsa:dslink:0.24.1'
-    implementation 'org.projecthaystack:haystack-java:3.0.5'
+    implementation 'org.projecthaystack:haystack-java:3.0.6'
 }
 
 run {

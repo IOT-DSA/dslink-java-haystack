@@ -1,8 +1,19 @@
 package org.dsa.iot.haystack.helpers;
 
+import java.util.HashSet;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.util.Objects;
+import org.dsa.iot.dslink.util.handler.Handler;
+import org.dsa.iot.haystack.Haystack;
+import org.dsa.iot.haystack.Utils;
+import org.dsa.iot.haystack.handlers.ListHandler;
 import org.projecthaystack.HGrid;
 import org.projecthaystack.HWatch;
 import org.projecthaystack.client.CallErrException;
@@ -11,16 +22,6 @@ import org.projecthaystack.client.CallNetworkException;
 import org.projecthaystack.client.HClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.dsa.iot.dslink.util.handler.Handler;
-import org.dsa.iot.haystack.Utils;
-
-import java.util.HashSet;
-import java.util.Queue;
-import java.util.Set;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author Samuel Grenier
@@ -35,6 +36,7 @@ public class ConnectionHelper {
     private final Handler<Void> watchEnabled;
     private final Handler<Void> watchDisabled;
 
+    private final Haystack haystack;
     private volatile String username;
     private volatile char[] password;
     private volatile String url;
@@ -46,12 +48,14 @@ public class ConnectionHelper {
     private HClient client;
     private HWatch watch;
 
-    public ConnectionHelper(Node node,
+    public ConnectionHelper(Haystack haystack,
                             Handler<Void> watchEnabled,
                             Handler<Void> watchDisabled) {
+        this.haystack = haystack;
         this.watchEnabled = watchEnabled;
         this.watchDisabled = watchDisabled;
 
+        Node node = haystack.getNode();
         username = node.getConfig("username").getString();
         password = node.getPassword();
         url = node.getConfig("url").getString();
@@ -60,7 +64,8 @@ public class ConnectionHelper {
         statusNode = Utils.getStatusNode(node);
     }
 
-    public void editConnection(String url, String user, String pass, int connTimeout, int readTimeout) {
+    public void editConnection(String url, String user, String pass, int connTimeout,
+                               int readTimeout) {
         close();
         statusNode.setValue(new Value("Not Connected"));
         this.url = url;
@@ -96,9 +101,9 @@ public class ConnectionHelper {
     public void getWatch(final StateHandler<HWatch> onWatchReceived) {
         try {
             synchronized (lock) {
-            	if (watch != null && !watch.isOpen()) {
-            		close();
-            	}
+                if (watch != null && !watch.isOpen()) {
+                    close();
+                }
                 if (watch == null) {
                     getClient(new StateHandler<HClient>() {
                         @Override
@@ -132,8 +137,7 @@ public class ConnectionHelper {
         try {
             connect(onClientReceived);
         } catch (CallErrException cee) {
-            if (onClientReceived != null
-                    && onClientReceived.incrementRetryCount() > 1) {
+            if (onClientReceived != null && onClientReceived.incrementRetryCount() > 1) {
                 throw cee;
             }
             String s = cee.getMessage();
@@ -225,11 +229,15 @@ public class ConnectionHelper {
                 if (onConnected != null) {
                     onConnected.handle(client);
                 }
+                ListHandler.get().handle(haystack.getNode());
             } catch (RuntimeException e) {
-            	Throwable cause = e.getCause();
-            	String err = String.format("Unable to connect to %s : %s : %s", url, e.getMessage(), cause != null ? cause.getMessage() : "");
-                statusNode.setValue(new Value(err));
-            	LOGGER.warn(err);
+                Throwable cause = e.getCause();
+                String err = String.format("Unable to connect to %s : %s : %s", url, e.getMessage(),
+                                           cause != null ? cause.getMessage() : "");
+                if (haystack.isEnabled()) {
+                    statusNode.setValue(new Value(err));
+                }
+                LOGGER.warn(err);
             }
         }
     }

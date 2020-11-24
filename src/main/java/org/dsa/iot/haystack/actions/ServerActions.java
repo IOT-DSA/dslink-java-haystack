@@ -12,11 +12,15 @@ import org.dsa.iot.dslink.node.value.ValueType;
 import org.dsa.iot.dslink.util.handler.Handler;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Samuel Grenier
  */
 public class ServerActions {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Haystack.class);
 
     public static Action getAddServerAction(final Node parent) {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
@@ -37,8 +41,9 @@ public class ServerActions {
 
                 NodeBuilder builder = Utils.getBuilder(parent, name);
                 builder.setConfig("url", new Value(url));
+                String user = null;
                 if (vUser != null) {
-                    String user = vUser.getString();
+                    user = vUser.getString();
                     builder.setConfig("username", new Value(user));
                 }
                 if (vPass != null) {
@@ -53,6 +58,8 @@ public class ServerActions {
 
                 Haystack haystack = new Haystack(node);
                 Utils.initCommon(haystack, node);
+                LOGGER.info("Added server name={} url={} user={}", name, url, user);
+
             }
         });
         a.addParameter(new Parameter("Name", ValueType.STRING));
@@ -79,6 +86,7 @@ public class ServerActions {
             public void handle(ActionResult event) {
                 node.getParent().removeChild(node);
                 haystack.stop();
+                LOGGER.info("Removed server {}", node.getPath());
             }
         });
     }

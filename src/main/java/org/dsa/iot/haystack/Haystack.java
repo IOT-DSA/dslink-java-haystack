@@ -1,6 +1,8 @@
 package org.dsa.iot.haystack;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
@@ -82,7 +84,7 @@ public class Haystack {
         this.subs = new ConcurrentHashMap<>();
         this.navHelper = new NavHelper(this);
         Utils.getStatusNode(node);
-        this.conn = new ConnectionHelper(node, new Handler<Void>() {
+        this.conn = new ConnectionHelper(this, new Handler<Void>() {
             @Override
             public void handle(Void event) {
                 watchEnabled = true;
@@ -107,6 +109,7 @@ public class Haystack {
         });
         if (enabled.getBool()) {
             // Ensure subscriptions are subscribed
+            node.setRoConfig("lu", new Value(0));
             conn.getClient(null);
         } else {
             Utils.getStatusNode(node).setValue(new Value("Disabled"));
@@ -118,6 +121,7 @@ public class Haystack {
                      final HGrid grid,
                      final Handler<HGrid> onComplete) {
         if (!isEnabled()) {
+            onComplete.handle(null);
             return;
         }
         conn.getClient(new StateHandler<HClient>() {
@@ -138,16 +142,29 @@ public class Haystack {
                                int connTimeout,
                                int readTimeout,
                                boolean enabled) {
+        LOGGER.info("Edit Server url={} user={} enabled={}", url, user, enabled);
         if (!enabled) {
             stop();
             Utils.getStatusNode(node).setValue(new Value("Disabled"));
+            List<String> list = new ArrayList<>(node.getChildren().keySet());
+            for (String name : list) {
+                Node tmp = node.getChild(name, false);
+                if (tmp.getAction() != null) {
+                    continue;
+                }
+                if (tmp.getRoConfig("navId") != null) {
+                    node.removeChild(name, false);
+                }
+            }
         } else {
+            node.setRoConfig("lu", new Value(0));
             conn.editConnection(url, user, pass, connTimeout, readTimeout);
             setupPoll(pollRate);
         }
 
         Action a = ServerActions.getEditAction(node);
         node.getChild("editServer").setAction(a);
+
     }
 
     public void eval(final String expr, final Handler<HGrid> onComplete) {
@@ -173,6 +190,10 @@ public class Haystack {
 
     public NavHelper getNavHelper() {
         return navHelper;
+    }
+
+    public Node getNode() {
+        return node;
     }
 
     public Value getPollRate() {
@@ -210,6 +231,10 @@ public class Haystack {
     }
 
     public void nav(HVal navId, Handler<HGrid> onComplete) {
+        if (!isEnabled()) {
+            onComplete.handle(null);
+            return;
+        }
         HGrid grid = HGrid.EMPTY;
         if (navId != null) {
             HGridBuilder builder = new HGridBuilder();
@@ -250,7 +275,7 @@ public class Haystack {
     }
 
     public void unsubscribe(final HRef id) {
-        if (!watchEnabled) {
+        if (!isEnabled() || !watchEnabled) {
             return;
         }
         subs.remove(id.toString());
@@ -269,7 +294,7 @@ public class Haystack {
     }
 
     private void poll() {
-        if (!watchEnabled || subs.isEmpty()) {
+        if (!isEnabled() || !watchEnabled || subs.isEmpty()) {
             return;
         }
 
@@ -336,7 +361,7 @@ public class Haystack {
     }
 
     private void subscribe(final HRef id, Node node, boolean add) {
-        if (!watchEnabled) {
+        if (!isEnabled() || !watchEnabled) {
             return;
         }
         if (add) {
