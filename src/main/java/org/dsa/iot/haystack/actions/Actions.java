@@ -378,11 +378,7 @@ public class Actions {
                     if (name != null) {
                         HVal val = (HVal) entry.getValue();
                         Value value = Utils.hvalToVal(val);
-                        if (value != null) {
-                            metaObj.put(name, value);
-                        } else {
-                            metaObj.put(name, null);
-                        }
+                        metaObj.put(name, value);
                     }
                 }
                 t.setTableMeta(metaObj);
@@ -403,11 +399,7 @@ public class Actions {
                     if (name != null) {
                         HVal val = (HVal) entry.getValue();
                         Value value = Utils.hvalToVal(val);
-                        if (value != null) {
-                            metaObj.put(name, value);
-                        } else {
-                            metaObj.put(name, null);
-                        }
+                        metaObj.put(name, value);
                     }
                 }
                 p.setMetaData(metaObj);

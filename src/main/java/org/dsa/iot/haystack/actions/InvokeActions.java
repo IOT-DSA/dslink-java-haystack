@@ -1,5 +1,12 @@
 package org.dsa.iot.haystack.actions;
 
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.NodeBuilder;
 import org.dsa.iot.dslink.node.Permission;
@@ -11,21 +18,16 @@ import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
 import org.dsa.iot.dslink.node.value.ValueUtils;
 import org.dsa.iot.dslink.util.StringUtils;
+import org.dsa.iot.dslink.util.handler.Handler;
 import org.dsa.iot.dslink.util.json.JsonObject;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
 import org.dsa.iot.haystack.helpers.StateHandler;
-import org.projecthaystack.*;
+import org.projecthaystack.HDict;
+import org.projecthaystack.HDictBuilder;
+import org.projecthaystack.HGrid;
+import org.projecthaystack.HRef;
 import org.projecthaystack.client.HClient;
-import org.dsa.iot.dslink.util.handler.Handler;
-
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * @author Samuel Grenier
@@ -150,7 +152,8 @@ public class InvokeActions {
 
         final List<Parameter> params = new LinkedList<>();
         Matcher matcher = PATTERN.matcher(expr);
-        matcher: while (matcher.find()) {
+        matcher:
+        while (matcher.find()) {
             String name = matcher.group(0).substring(1);
             ValueType type;
             switch (name) {

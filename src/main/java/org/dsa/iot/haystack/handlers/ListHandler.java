@@ -1,7 +1,12 @@
 package org.dsa.iot.haystack.handlers;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.value.Value;
+import org.dsa.iot.dslink.util.handler.Handler;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.helpers.NavHelper;
 import org.projecthaystack.HGrid;
@@ -10,12 +15,6 @@ import org.projecthaystack.HVal;
 import org.projecthaystack.io.HZincReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.dsa.iot.dslink.util.handler.Handler;
-
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author Samuel Grenier
@@ -45,9 +44,9 @@ public class ListHandler implements Handler<Node> {
             String navIdZinc = vNav.getString();
             HVal navIdtemp;
             try {
-            	navIdtemp = new HZincReader(navIdZinc).readVal();
+                navIdtemp = new HZincReader(navIdZinc).readVal();
             } catch (Exception e) {
-            	navIdtemp = HUri.make(navIdZinc);
+                navIdtemp = HUri.make(navIdZinc);
             }
             navId = navIdtemp;
         } else {

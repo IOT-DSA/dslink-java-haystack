@@ -1,8 +1,7 @@
 package org.dsa.iot.haystack.helpers;
 
-import org.dsa.iot.dslink.util.handler.Handler;
-
 import java.util.concurrent.atomic.AtomicInteger;
+import org.dsa.iot.dslink.util.handler.Handler;
 
 /**
  * @author Samuel Grenier

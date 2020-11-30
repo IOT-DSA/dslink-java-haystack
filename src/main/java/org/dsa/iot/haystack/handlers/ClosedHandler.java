@@ -1,13 +1,12 @@
 package org.dsa.iot.haystack.handlers;
 
+import java.util.Map;
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.SubscriptionManager;
 import org.dsa.iot.dslink.node.value.Value;
+import org.dsa.iot.dslink.util.handler.Handler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.dsa.iot.dslink.util.handler.Handler;
-
-import java.util.Map;
 
 /**
  * @author Samuel Grenier

@@ -73,9 +73,12 @@ public class ServerActions {
             a.addParameter(p);
         }
         a.addParameter(new Parameter("Enabled", ValueType.BOOL, new Value(true)));
-        a.addParameter(new Parameter("Poll Rate", ValueType.NUMBER, new Value(5)).setDescription("Poll rate in seconds"));
-        a.addParameter(new Parameter("Connect Timeout", ValueType.NUMBER, new Value(60)).setDescription("Connect timeout in seconds"));
-        a.addParameter(new Parameter("Read Timeout", ValueType.NUMBER, new Value(60)).setDescription("Read timeout in seconds"));
+        a.addParameter(new Parameter("Poll Rate", ValueType.NUMBER, new Value(5))
+                               .setDescription("Poll rate in seconds"));
+        a.addParameter(new Parameter("Connect Timeout", ValueType.NUMBER, new Value(60))
+                               .setDescription("Connect timeout in seconds"));
+        a.addParameter(new Parameter("Read Timeout", ValueType.NUMBER, new Value(60))
+                               .setDescription("Read timeout in seconds"));
         return a;
     }
 
@@ -148,7 +151,7 @@ public class ServerActions {
             p.setEditorType(EditorType.PASSWORD);
             a.addParameter(p);
         }
-        a.addParameter(new Parameter( "Enabled", ValueType.BOOL, node.getConfig("enabled")));
+        a.addParameter(new Parameter("Enabled", ValueType.BOOL, node.getConfig("enabled")));
         {
             Parameter p = new Parameter("Poll Rate", ValueType.NUMBER);
             String desc = "How often the Haystack server should be polled ";
