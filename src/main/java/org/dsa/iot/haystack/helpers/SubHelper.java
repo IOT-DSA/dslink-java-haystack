@@ -1,18 +1,27 @@
 package org.dsa.iot.haystack.helpers;
 
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import org.dsa.iot.dslink.node.actions.Parameter;
 import org.dsa.iot.dslink.node.actions.table.Row;
 import org.dsa.iot.dslink.node.actions.table.Table;
 import org.dsa.iot.dslink.node.value.ValueType;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
-import org.projecthaystack.*;
+import org.projecthaystack.HDict;
+import org.projecthaystack.HGrid;
+import org.projecthaystack.HRef;
+import org.projecthaystack.HRow;
+import org.projecthaystack.HVal;
+import org.projecthaystack.HWatch;
 import org.projecthaystack.client.HClient;
-import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author Samuel Grenier
@@ -122,6 +131,7 @@ public class SubHelper {
     }
 
     private static class WatchCont {
+
         private HWatch watch;
     }
 }

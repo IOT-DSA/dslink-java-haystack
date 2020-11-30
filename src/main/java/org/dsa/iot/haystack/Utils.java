@@ -5,12 +5,19 @@ import org.dsa.iot.dslink.node.NodeBuilder;
 import org.dsa.iot.dslink.node.NodeListener;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
+import org.dsa.iot.dslink.util.handler.Handler;
 import org.dsa.iot.haystack.actions.Actions;
 import org.dsa.iot.haystack.actions.InvokeActions;
 import org.dsa.iot.haystack.actions.ServerActions;
 import org.dsa.iot.haystack.handlers.ListHandler;
-import org.projecthaystack.*;
-import org.dsa.iot.dslink.util.handler.Handler;
+import org.projecthaystack.HBool;
+import org.projecthaystack.HDate;
+import org.projecthaystack.HDateTime;
+import org.projecthaystack.HDictBuilder;
+import org.projecthaystack.HNum;
+import org.projecthaystack.HRef;
+import org.projecthaystack.HStr;
+import org.projecthaystack.HVal;
 
 /**
  * @author Samuel Grenier
@@ -155,41 +162,41 @@ public class Utils {
         invokeNode.setAction(InvokeActions.getInvokeAction(haystack));
         invokeNode.setSerializable(false);
         invokeNode.build();
-        
+
         node.setHasChildren(true);
         NodeListener listener = node.getListener();
         Handler<Node> handler = ListHandler.get();
         listener.setOnListHandler(handler);
     }
-    
+
     public static Node getStatusNode(Node node) {
-    	synchronized(node) {
-    		Node statusNode = node.getChild("Status", false);
-        	if (statusNode == null) {
-        		statusNode = createStatusNode(node);
-        	}
-        	return statusNode;
-    	}
+        synchronized (node) {
+            Node statusNode = node.getChild("Status", false);
+            if (statusNode == null) {
+                statusNode = createStatusNode(node);
+            }
+            return statusNode;
+        }
     }
-    
+
     private static Node createStatusNode(Node node) {
-    	Node statusNode = node.createChild("Status", false)
-    			.setValueType(ValueType.STRING)
-    			.setValue(new Value("Not Connected")).build();
-    	statusNode.setSerializable(false);
+        Node statusNode = node.createChild("Status", false)
+                              .setValueType(ValueType.STRING)
+                              .setValue(new Value("Not Connected")).build();
+        statusNode.setSerializable(false);
         return statusNode;
     }
-    
+
     public static NodeBuilder getBuilder(Node parent, String childName) {
-    	if (parent.hasChild(childName)) {
-    		return parent.getChild(childName).createFakeBuilder();
-    	} else {
-    		return parent.createChild(childName);
-    	}
+        if (parent.hasChild(childName)) {
+            return parent.getChild(childName).createFakeBuilder();
+        } else {
+            return parent.createChild(childName);
+        }
     }
 
     public static ValueType getHaystackTypes() {
-        String[] enums = new String[] {
+        String[] enums = new String[]{
                 "bool",
                 "number",
                 "str",

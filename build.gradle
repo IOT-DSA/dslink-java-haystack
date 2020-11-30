@@ -1,23 +1,19 @@
 apply plugin: 'application'
-apply plugin: 'findbugs'
 apply plugin: 'java-library'
 
 mainClassName = 'org.dsa.iot.haystack.Main'
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
-version = '0.2.13'
+version = '0.3.0'
 
 repositories {
-    mavenCentral()
-    maven {
-        url 'https://oss.sonatype.org/content/repositories/snapshots/'
-    }
-    flatDir { dirs 'external' }
+    mavenLocal()
+    jcenter()
 }
  
 dependencies {
-    api 'org.iot-dsa:dslink:0.20.1'
-    compile ':haystack-java:+'
+    api 'org.iot-dsa:dslink:0.24.1'
+    implementation 'org.projecthaystack:haystack-java:3.0.6'
 }
 
 run {
@@ -25,15 +21,8 @@ run {
     workingDir project.buildDir
 }
 
-tasks.withType(FindBugs) {
-    reports {
-        xml.enabled = false
-        html.enabled = true
-    }
-}
-
 wrapper {
-    gradleVersion = '4.10'
+    gradleVersion = '5.6.4'
 }
 
 applicationDistribution.from new File(project.projectDir, "/dslink.json")

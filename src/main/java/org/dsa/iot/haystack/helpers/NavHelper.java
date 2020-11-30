@@ -1,31 +1,33 @@
 package org.dsa.iot.haystack.helpers;
 
-import org.dsa.iot.dslink.link.Linkable;
-import org.dsa.iot.dslink.node.Node;
-import org.dsa.iot.dslink.node.NodeBuilder;
-import org.dsa.iot.dslink.node.NodeListener;
-import org.dsa.iot.dslink.node.SubscriptionManager;
-import org.dsa.iot.dslink.node.value.Value;
-import org.dsa.iot.dslink.util.Objects;
-import org.dsa.iot.dslink.util.StringUtils;
-import org.dsa.iot.haystack.Haystack;
-import org.dsa.iot.haystack.Utils;
-import org.dsa.iot.haystack.actions.Actions;
-import org.dsa.iot.haystack.actions.InvokeActions;
-import org.dsa.iot.haystack.handlers.ClosedHandler;
-import org.dsa.iot.haystack.handlers.ListHandler;
-import org.projecthaystack.*;
-import org.projecthaystack.io.HZincReader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.dsa.iot.dslink.util.handler.Handler;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import org.dsa.iot.dslink.node.Node;
+import org.dsa.iot.dslink.node.NodeBuilder;
+import org.dsa.iot.dslink.node.NodeListener;
+import org.dsa.iot.dslink.node.value.Value;
+import org.dsa.iot.dslink.util.Objects;
+import org.dsa.iot.dslink.util.StringUtils;
+import org.dsa.iot.dslink.util.handler.Handler;
+import org.dsa.iot.haystack.Haystack;
+import org.dsa.iot.haystack.Utils;
+import org.dsa.iot.haystack.actions.Actions;
+import org.dsa.iot.haystack.actions.InvokeActions;
+import org.dsa.iot.haystack.handlers.ClosedHandler;
+import org.dsa.iot.haystack.handlers.ListHandler;
+import org.projecthaystack.HGrid;
+import org.projecthaystack.HMarker;
+import org.projecthaystack.HRef;
+import org.projecthaystack.HRow;
+import org.projecthaystack.HStr;
+import org.projecthaystack.HVal;
+import org.projecthaystack.io.HZincReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Samuel Grenier
@@ -36,7 +38,7 @@ public class NavHelper {
 
     private final ScheduledThreadPoolExecutor stpe;
     private final Haystack haystack;
-    private final Map<Node, SubscriptionController> subControllers = new HashMap<Node, SubscriptionController>();
+    private final Map<Node, SubscriptionController> subControllers = new HashMap<>();
 
     public NavHelper(Haystack haystack) {
         this.stpe = Objects.createDaemonThreadPool();
@@ -52,8 +54,8 @@ public class NavHelper {
     }
 
     public void iterateNavChildren(final HGrid nav,
-                                    final Node node,
-                                    boolean continueNav) {
+                                   final Node node,
+                                   boolean continueNav) {
         Iterator<?> navIt = nav.iterator();
         List<HRow> equipRefs = new ArrayList<>();
         while (navIt != null && navIt.hasNext()) {
@@ -237,47 +239,47 @@ public class NavHelper {
     }
 
     private void iterateRow(Node node, HRow row) {
-    	SubscriptionController subController = getSubController(node, row);
+        SubscriptionController subController = getSubController(node, row);
         Iterator<?> it = row.iterator();
         while (it.hasNext()) {
             Map.Entry entry = (Map.Entry) it.next();
             String name = (String) entry.getKey();
             HVal val = (HVal) entry.getValue();
             Value value = Utils.hvalToVal(val);
-            
+
             if (value == null) {
-            	continue;
+                continue;
             }
 
             Node child = node.getChild(name);
             if (child == null) {
-            	child = node.createChild(name).build();
+                child = node.createChild(name).build();
             }
             child.setValueType(value.getType());
             child.setValue(value);
-            
+
             NodeListener listener = child.getListener();
             listener.setOnSubscribeHandler(subController.getSubHandler());
             listener.setOnUnsubscribeHandler(subController.getUnsubHandler());
             if (child.getLink().getSubscriptionManager().hasValueSub(child)) {
-            	subController.childSubscribed(child);
+                subController.childSubscribed(child);
             }
         }
     }
-    
+
     private SubscriptionController getSubController(Node node, HRow row) {
-    	SubscriptionController subController = subControllers.get(node);
-    	if (subController == null) {
-    		subController = new SubscriptionController(node, haystack);
-    		subControllers.put(node, subController);
-    	}
-    	
-    	final HVal id = row.get("id", false);
+        SubscriptionController subController = subControllers.get(node);
+        if (subController == null) {
+            subController = new SubscriptionController(node, haystack);
+            subControllers.put(node, subController);
+        }
+
+        final HVal id = row.get("id", false);
         if (id != null) {
             subController.setId((HRef) id);
         }
-    	
-    	return subController;
+
+        return subController;
     }
 
     private String getName(HRow row) {

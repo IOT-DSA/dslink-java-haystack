@@ -1,23 +1,34 @@
 package org.dsa.iot.haystack.actions;
 
+import java.util.Iterator;
+import java.util.Map;
 import org.dsa.iot.dslink.methods.StreamState;
 import org.dsa.iot.dslink.node.Permission;
-import org.dsa.iot.dslink.node.actions.*;
+import org.dsa.iot.dslink.node.actions.Action;
+import org.dsa.iot.dslink.node.actions.ActionResult;
+import org.dsa.iot.dslink.node.actions.Parameter;
+import org.dsa.iot.dslink.node.actions.ResultType;
 import org.dsa.iot.dslink.node.actions.table.Row;
 import org.dsa.iot.dslink.node.actions.table.Table;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
+import org.dsa.iot.dslink.util.handler.Handler;
 import org.dsa.iot.dslink.util.json.JsonObject;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
 import org.dsa.iot.haystack.helpers.StateHandler;
 import org.dsa.iot.haystack.helpers.SubHelper;
-import org.projecthaystack.*;
+import org.projecthaystack.HBool;
+import org.projecthaystack.HCol;
+import org.projecthaystack.HDict;
+import org.projecthaystack.HGrid;
+import org.projecthaystack.HGridBuilder;
+import org.projecthaystack.HNum;
+import org.projecthaystack.HRef;
+import org.projecthaystack.HRow;
+import org.projecthaystack.HStr;
+import org.projecthaystack.HVal;
 import org.projecthaystack.client.HClient;
-import org.dsa.iot.dslink.util.handler.Handler;
-
-import java.util.Iterator;
-import java.util.Map;
 
 /**
  * @author Samuel Grenier
@@ -29,6 +40,9 @@ public class Actions {
 
             @Override
             public void handle(ActionResult event) {
+                if (!haystack.isEnabled()) {
+                    throw new IllegalStateException("Disabled");
+                }
                 Value vId = event.getParameter("ID", ValueType.STRING);
                 String id = vId.getString();
                 Value vPoll = event.getParameter("Poll Rate", ValueType.NUMBER);
@@ -70,6 +84,9 @@ public class Actions {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(final ActionResult event) {
+                if (!haystack.isEnabled()) {
+                    throw new IllegalStateException("Disabled");
+                }
                 haystack.getConnHelper().getClient(new StateHandler<HClient>() {
                     @Override
                     public void handle(HClient client) {
@@ -216,7 +233,7 @@ public class Actions {
             a.addParameter(p);
         }
         {
-            String[] enums = new String[] {
+            String[] enums = new String[]{
                     "ms",
                     "sec",
                     "min",
@@ -255,6 +272,9 @@ public class Actions {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(final ActionResult event) {
+                if (!haystack.isEnabled()) {
+                    throw new IllegalStateException("Disabled");
+                }
                 Value vFilter = event.getParameter("filter", ValueType.STRING);
                 Value vLimit = event.getParameter("limit");
 
@@ -284,6 +304,9 @@ public class Actions {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(final ActionResult event) {
+                if (!haystack.isEnabled()) {
+                    throw new IllegalStateException("Disabled");
+                }
                 Value vExpr = event.getParameter("expr", ValueType.STRING);
                 String expr = vExpr.getString();
 
@@ -308,6 +331,9 @@ public class Actions {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(final ActionResult event) {
+                if (!haystack.isEnabled()) {
+                    throw new IllegalStateException("Disabled");
+                }
                 Value vId = event.getParameter("id", ValueType.STRING);
                 Value vRange = event.getParameter("range", ValueType.STRING);
                 String id = vId.getString();
@@ -352,11 +378,7 @@ public class Actions {
                     if (name != null) {
                         HVal val = (HVal) entry.getValue();
                         Value value = Utils.hvalToVal(val);
-                        if (value != null) {
-                            metaObj.put(name, value);
-                        } else {
-                            metaObj.put(name, null);
-                        }
+                        metaObj.put(name, value);
                     }
                 }
                 t.setTableMeta(metaObj);
@@ -377,11 +399,7 @@ public class Actions {
                     if (name != null) {
                         HVal val = (HVal) entry.getValue();
                         Value value = Utils.hvalToVal(val);
-                        if (value != null) {
-                            metaObj.put(name, value);
-                        } else {
-                            metaObj.put(name, null);
-                        }
+                        metaObj.put(name, value);
                     }
                 }
                 p.setMetaData(metaObj);

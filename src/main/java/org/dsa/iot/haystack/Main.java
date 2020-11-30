@@ -1,5 +1,10 @@
 package org.dsa.iot.haystack;
 
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.dsa.iot.dslink.DSLink;
 import org.dsa.iot.dslink.DSLinkFactory;
 import org.dsa.iot.dslink.DSLinkHandler;
@@ -10,16 +15,16 @@ import org.dsa.iot.dslink.util.StringUtils;
 import org.dsa.iot.haystack.actions.Actions;
 import org.dsa.iot.haystack.actions.InvokeActions;
 import org.dsa.iot.haystack.helpers.StateHandler;
-import org.projecthaystack.*;
+import org.projecthaystack.HDict;
+import org.projecthaystack.HGrid;
+import org.projecthaystack.HRef;
+import org.projecthaystack.HRow;
+import org.projecthaystack.HStr;
+import org.projecthaystack.HVal;
 import org.projecthaystack.client.HClient;
 import org.projecthaystack.io.HZincReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author Samuel Grenier
@@ -56,58 +61,45 @@ public class Main extends DSLinkHandler {
     public void onResponderInitialized(DSLink link) {
         this.link = link;
         LOGGER.info("Connected");
-        try {
-//	        SSLContext sc = SSLContext.getInstance("TLS");
-//	        sc.init(null, new TrustManager[] { new TrustAllX509TrustManager() }, new java.security.SecureRandom());
-//	        HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-//	        HttpsURLConnection.setDefaultHostnameVerifier( new HostnameVerifier(){
-//	            public boolean verify(String string,SSLSession ssls) {
-//	                return true;
-//	            }
-//	        });
-        } catch (Exception e) {
-        	
-        }
-
         Node superRoot = link.getNodeManager().getSuperRoot();
         Haystack.init(superRoot);
     }
 
     @Override
     public Node onSubscriptionFail(String path) {
-    	NodeManager manager = link.getNodeManager();
+        NodeManager manager = link.getNodeManager();
         String[] split = NodeManager.splitPath(path);
         Node superRoot = manager.getSuperRoot();
         try {
-			Thread.sleep(2000);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-		}
-        synchronized(subFailLock) {
-        	Node node = manager.getNode(path, false, false).getNode();
-        	if (node != null) {
-        		return node;
-        	}
-        	Node n = superRoot;
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            // TODO Auto-generated catch block
+        }
+        synchronized (subFailLock) {
+            Node node = manager.getNode(path, false, false).getNode();
+            if (node != null) {
+                return node;
+            }
+            Node n = superRoot;
             int i = 0;
             while (i < split.length) {
-            	Node next = n.getChild(split[i], false);
-            	int tries = 0;
-            	while (next == null && tries < 6) {
-            		tries++;
-            		try {
-            			subFailLock.wait(200);
-            		} catch (InterruptedException e) {
-            			// TODO Auto-generated catch block
-            		}
-            		next = n.getChild(split[i], false);
-            	}
-            	if (next == null) {
-            		return null;
-            	}
-            	n = next;
-            	n.getListener().postListUpdate();
-            	i++;
+                Node next = n.getChild(split[i], false);
+                int tries = 0;
+                while (next == null && tries < 6) {
+                    tries++;
+                    try {
+                        subFailLock.wait(200);
+                    } catch (InterruptedException e) {
+                        // TODO Auto-generated catch block
+                    }
+                    next = n.getChild(split[i], false);
+                }
+                if (next == null) {
+                    return null;
+                }
+                n = next;
+                n.getListener().postListUpdate();
+                i++;
             }
             return n;
         }
@@ -131,70 +123,65 @@ public class Main extends DSLinkHandler {
 
         final CountDownLatch latch = new CountDownLatch(1);
         final Container container = new Container();
-        switch (actName) {
-            case "pointWrite": {
-                haystack.getConnHelper().getClient(new StateHandler<HClient>() {
-                    @Override
-                    public void handle(HClient event) {
-                        HDict dict = event.readById(id);
-                        HVal hKind = dict.get("kind", false);
-                        String kind = null;
-                        if (hKind != null) {
-                            kind = hKind.toString();
-                        }
+        if ("pointWrite".equals(actName)) {
+            haystack.getConnHelper().getClient(new StateHandler<HClient>() {
+                @Override
+                public void handle(HClient event) {
+                    HDict dict = event.readById(id);
+                    HVal hKind = dict.get("kind", false);
+                    String kind = null;
+                    if (hKind != null) {
+                        kind = hKind.toString();
+                    }
 
+                    String[] pSplit = Arrays.copyOf(split, split.length - 1);
+                    String parent = StringUtils.join(pSplit, "/");
+                    Node node = manager.getNode(parent, true).getNode();
+                    NodeBuilder b = Utils.getBuilder(node, "pointWrite");
+                    b.setDisplayName("Point Write");
+                    b.setSerializable(false);
+                    b.setAction(Actions.getPointWriteAction(haystack, id, kind));
+                    container.node = b.build();
+                    latch.countDown();
+                }
+            });
+        } else {
+            haystack.getConnHelper().getClient(new StateHandler<HClient>() {
+                @Override
+                public void handle(HClient event) {
+                    HDict dict = event.readById(id);
+                    HVal actions = dict.get("actions");
+                    String zinc = ((HStr) actions).val;
+                    if (!zinc.endsWith("\n")) {
+                        zinc += "\n";
+                    }
+                    HZincReader reader = new HZincReader(zinc);
+                    HGrid grid = reader.readGrid();
+                    Iterator<?> it = grid.iterator();
+                    boolean doThrow = true;
+                    while (it.hasNext()) {
+                        HRow r = (HRow) it.next();
+                        if (!actName.equals(r.dis())) {
+                            continue;
+                        }
                         String[] pSplit = Arrays.copyOf(split, split.length - 1);
                         String parent = StringUtils.join(pSplit, "/");
                         Node node = manager.getNode(parent, true).getNode();
-                        NodeBuilder b = Utils.getBuilder(node, "pointWrite");
-                        b.setDisplayName("Point Write");
-                        b.setSerializable(false);
-                        b.setAction(Actions.getPointWriteAction(haystack, id, kind));
-                        container.node = b.build();
-                        latch.countDown();
-                    }
-                });
-                break;
-            }
-            default: {
-                haystack.getConnHelper().getClient(new StateHandler<HClient>() {
-                    @Override
-                    public void handle(HClient event) {
-                        HDict dict = event.readById(id);
-                        HVal actions = dict.get("actions");
-                        String zinc = ((HStr) actions).val;
-                        if (!zinc.endsWith("\n")) {
-                            zinc += "\n";
-                        }
-                        HZincReader reader = new HZincReader(zinc);
-                        HGrid grid = reader.readGrid();
-                        Iterator<?> it = grid.iterator();
-                        boolean doThrow = true;
-                        while (it.hasNext()) {
-                            HRow r = (HRow) it.next();
-                            if (!actName.equals(r.dis())) {
-                                continue;
-                            }
-                            String[] pSplit = Arrays.copyOf(split, split.length - 1);
-                            String parent = StringUtils.join(pSplit, "/");
-                            Node node = manager.getNode(parent, true).getNode();
-                            InvokeActions.handleAction(haystack, id, node, r);
-                            doThrow = false;
+                        InvokeActions.handleAction(haystack, id, node, r);
+                        doThrow = false;
 
-                            String name = split[split.length - 1];
-                            name = StringUtils.encodeName(name);
-                            container.node = node.getChild(name);
-                            break;
-                        }
-                        if (doThrow) {
-                            String err = "Action " + actName + " does not exist";
-                            throw new RuntimeException(err);
-                        }
-                        latch.countDown();
+                        String name = split[split.length - 1];
+                        name = StringUtils.encodeName(name);
+                        container.node = node.getChild(name);
+                        break;
                     }
-                });
-                break;
-            }
+                    if (doThrow) {
+                        String err = "Action " + actName + " does not exist";
+                        throw new RuntimeException(err);
+                    }
+                    latch.countDown();
+                }
+            });
         }
         try {
             latch.await(10, TimeUnit.SECONDS);
@@ -209,9 +196,10 @@ public class Main extends DSLinkHandler {
     }
 
     private static class Container {
+
         Node node;
     }
-    
+
 //    public class TrustAllX509TrustManager implements X509TrustManager {
 //        public X509Certificate[] getAcceptedIssuers() {
 //            return new X509Certificate[0];

@@ -12,57 +12,73 @@ import org.dsa.iot.dslink.node.value.ValueType;
 import org.dsa.iot.dslink.util.handler.Handler;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Samuel Grenier
  */
 public class ServerActions {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(Haystack.class);
+
     public static Action getAddServerAction(final Node parent) {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(ActionResult event) {
                 ValueType vt = ValueType.STRING;
-                Value vName = event.getParameter("name", vt);
-                Value vUrl = event.getParameter("url", vt);
-                Value vUser = event.getParameter("username");
-                Value vPass = event.getParameter("password");
-                Value vConnTimeout = event.getParameter("connect timeout");
-                Value vReadTimeout = event.getParameter("read timeout");
+                Value vName = event.getParameter("Name", vt);
+                Value vUrl = event.getParameter("URL", vt);
+                Value vUser = event.getParameter("Username", vt);
+                Value vPass = event.getParameter("Password");
+                Value vConnTimeout = event.getParameter("Connect Timeout");
+                Value vReadTimeout = event.getParameter("Read Timeout");
+                Value vEnabled = event.getParameter("Enabled", ValueType.BOOL);
+                Value vPollRate = event.getParameter("Poll Rate");
 
                 String name = vName.getString();
                 String url = vUrl.getString();
 
                 NodeBuilder builder = Utils.getBuilder(parent, name);
                 builder.setConfig("url", new Value(url));
+                String user = null;
                 if (vUser != null) {
-                    String user = vUser.getString();
+                    user = vUser.getString();
                     builder.setConfig("username", new Value(user));
                 }
                 if (vPass != null) {
                     char[] pass = vPass.getString().toCharArray();
                     builder.setPassword(pass);
                 }
+                builder.setConfig("enabled", vEnabled);
+                builder.setConfig("pollRate", vPollRate);
                 builder.setConfig("connect timeout", vConnTimeout);
                 builder.setConfig("read timeout", vReadTimeout);
                 Node node = builder.build();
 
                 Haystack haystack = new Haystack(node);
                 Utils.initCommon(haystack, node);
+                LOGGER.info("Added server name={} url={} user={}", name, url, user);
+
             }
         });
-        a.addParameter(new Parameter("name", ValueType.STRING));
-        a.addParameter(new Parameter("url", ValueType.STRING)
+        a.addParameter(new Parameter("Name", ValueType.STRING));
+        a.addParameter(new Parameter("URL", ValueType.STRING)
                                .setDescription("http://{domain}/api/{projectName}")
                                .setPlaceHolder("http://{domain}/api/{projectName}"));
-        a.addParameter(new Parameter("username", ValueType.STRING));
+        a.addParameter(new Parameter("Username", ValueType.STRING));
         {
-            Parameter p = new Parameter("password", ValueType.STRING);
+            Parameter p = new Parameter("Password", ValueType.STRING);
             p.setEditorType(EditorType.PASSWORD);
             a.addParameter(p);
         }
-        a.addParameter(new Parameter("connect timeout", ValueType.NUMBER, new Value(60)).setDescription("Connect timeout in seconds"));
-        a.addParameter(new Parameter("read timeout", ValueType.NUMBER, new Value(60)).setDescription("Read timeout in seconds"));
+        a.addParameter(new Parameter("Enabled", ValueType.BOOL, new Value(true)));
+        a.addParameter(new Parameter("Poll Rate", ValueType.NUMBER, new Value(5))
+                               .setDescription("Poll rate in seconds"));
+        a.addParameter(new Parameter("Connect Timeout", ValueType.NUMBER, new Value(60))
+                               .setDescription("Connect timeout in seconds"));
+        a.addParameter(new Parameter("Read Timeout", ValueType.NUMBER, new Value(60))
+                               .setDescription("Read timeout in seconds"));
         return a;
     }
 
@@ -73,6 +89,7 @@ public class ServerActions {
             public void handle(ActionResult event) {
                 node.getParent().removeChild(node);
                 haystack.stop();
+                LOGGER.info("Removed server {}", node.getPath());
             }
         });
     }
@@ -86,9 +103,10 @@ public class ServerActions {
                 Value vUrl = event.getParameter("URL", ValueType.STRING);
                 Value vUser = event.getParameter("Username", ValueType.STRING);
                 Value vPass = event.getParameter("Password");
+                Value vEnabled = event.getParameter("Enabled", ValueType.BOOL);
                 Value vPR = event.getParameter("Poll Rate", ValueType.NUMBER);
-                Value vConnTimeout = event.getParameter("connect timeout");
-                Value vReadTimeout = event.getParameter("read timeout");
+                Value vConnTimeout = event.getParameter("Connect Timeout");
+                Value vReadTimeout = event.getParameter("Read Timeout");
 
                 String url = vUrl.getString();
                 String user = vUser.getString();
@@ -106,11 +124,13 @@ public class ServerActions {
                 node.setConfig("pollRate", vPR);
                 node.setConfig("connect timeout", vConnTimeout);
                 node.setConfig("read timeout", vReadTimeout);
+                node.setConfig("enabled", vEnabled);
                 int pollRate = vPR.getNumber().intValue();
                 int connTimeout = (int) (vConnTimeout.getNumber().doubleValue() * 1000);
                 int readTimeout = (int) (vReadTimeout.getNumber().doubleValue() * 1000);
 
-                haystack.editConnection(url, user, pass, pollRate, connTimeout, readTimeout);
+                haystack.editConnection(
+                        url, user, pass, pollRate, connTimeout, readTimeout, vEnabled.getBool());
             }
         });
         {
@@ -131,6 +151,7 @@ public class ServerActions {
             p.setEditorType(EditorType.PASSWORD);
             a.addParameter(p);
         }
+        a.addParameter(new Parameter("Enabled", ValueType.BOOL, node.getConfig("enabled")));
         {
             Parameter p = new Parameter("Poll Rate", ValueType.NUMBER);
             String desc = "How often the Haystack server should be polled ";
@@ -143,9 +164,12 @@ public class ServerActions {
 
             a.addParameter(p);
         }
-        a.addParameter(new Parameter("connect timeout", ValueType.NUMBER, node.getConfig("connect timeout")).setDescription("Connect timeout in seconds"));
-        a.addParameter(new Parameter("read timeout", ValueType.NUMBER, node.getConfig("read timeout")).setDescription("Read timeout in seconds"));
-        
+        a.addParameter(new Parameter(
+                "Connect Timeout", ValueType.NUMBER, node.getConfig("connect timeout"))
+                               .setDescription("Connect timeout in seconds"));
+        a.addParameter(new Parameter(
+                "Read Timeout", ValueType.NUMBER, node.getConfig("read timeout"))
+                               .setDescription("Read timeout in seconds"));
         return a;
     }
 
