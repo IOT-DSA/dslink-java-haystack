@@ -193,6 +193,11 @@ public class ConnectionHelper {
         @Override
         public void run() {
             try {
+                if (!haystack.isEnabled()) {
+                    close();
+                    return;
+                }
+                statusNode.setValue(new Value("Connecting"));
                 String pass = "";
                 if (password != null) {
                     pass = String.valueOf(password);
@@ -236,6 +241,8 @@ public class ConnectionHelper {
                                            cause != null ? cause.getMessage() : "");
                 if (haystack.isEnabled()) {
                     statusNode.setValue(new Value(err));
+                } else {
+                    close();
                 }
                 LOGGER.warn(err);
             }

@@ -56,8 +56,7 @@ public class ServerActions {
                 builder.setConfig("read timeout", vReadTimeout);
                 Node node = builder.build();
 
-                Haystack haystack = new Haystack(node);
-                Utils.initCommon(haystack, node);
+                new Haystack(node);
                 LOGGER.info("Added server name={} url={} user={}", name, url, user);
 
             }

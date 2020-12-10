@@ -2,7 +2,7 @@
 .DS_Store
 .key
 nodes.json
-nodes.json.bak
+*.bak
 
 # Gradle
 .gradle
