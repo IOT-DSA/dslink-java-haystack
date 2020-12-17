@@ -145,18 +145,26 @@ public class Haystack {
                                boolean enabled) {
         LOGGER.info("Edit Server url={} user={} enabled={}", url, user, enabled);
         node.setRoConfig("lu", new Value(0));
+        stop();
         List<String> list = new ArrayList<>(node.getChildren().keySet());
         for (String name : list) {
-            Node tmp = node.getChild(name);
+            Node tmp = node.getChild(name, false);
+            if (tmp == null) {
+                tmp = node.getChild(name, true);
+            }
+            if (tmp == null) {
+                continue;
+            }
             if (tmp.getAction() != null) {
                 continue;
             }
             if (tmp.getRoConfig("navId") != null) {
-                node.removeChild(name, false);
+                if (node.removeChild(name, false) == null) {
+                    node.removeChild(name, true);
+                }
             }
         }
         if (!enabled) {
-            stop();
             Utils.getStatusNode(node).setValue(new Value("Disabled"));
         } else {
             conn.editConnection(url, user, pass, connTimeout, readTimeout);
