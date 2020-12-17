@@ -84,6 +84,7 @@ public class Haystack {
         this.subs = new ConcurrentHashMap<>();
         this.navHelper = new NavHelper(this);
         Utils.getStatusNode(node);
+        Utils.initCommon(this, node);
         this.conn = new ConnectionHelper(this, new Handler<Void>() {
             @Override
             public void handle(Void event) {
@@ -143,21 +144,29 @@ public class Haystack {
                                int readTimeout,
                                boolean enabled) {
         LOGGER.info("Edit Server url={} user={} enabled={}", url, user, enabled);
-        if (!enabled) {
-            stop();
-            Utils.getStatusNode(node).setValue(new Value("Disabled"));
-            List<String> list = new ArrayList<>(node.getChildren().keySet());
-            for (String name : list) {
-                Node tmp = node.getChild(name, false);
-                if (tmp.getAction() != null) {
-                    continue;
-                }
-                if (tmp.getRoConfig("navId") != null) {
-                    node.removeChild(name, false);
+        node.setRoConfig("lu", new Value(0));
+        stop();
+        List<String> list = new ArrayList<>(node.getChildren().keySet());
+        for (String name : list) {
+            Node tmp = node.getChild(name, false);
+            if (tmp == null) {
+                tmp = node.getChild(name, true);
+            }
+            if (tmp == null) {
+                continue;
+            }
+            if (tmp.getAction() != null) {
+                continue;
+            }
+            if (tmp.getRoConfig("navId") != null) {
+                if (node.removeChild(name, false) == null) {
+                    node.removeChild(name, true);
                 }
             }
+        }
+        if (!enabled) {
+            Utils.getStatusNode(node).setValue(new Value("Disabled"));
         } else {
-            node.setRoConfig("lu", new Value(0));
             conn.editConnection(url, user, pass, connTimeout, readTimeout);
             setupPoll(pollRate);
         }
@@ -215,8 +224,7 @@ public class Haystack {
             for (Node child : children.values()) {
                 if (child.getAction() == null && !"sys".equals(child.getName())) {
                     child.clearChildren();
-                    Haystack haystack = new Haystack(child);
-                    Utils.initCommon(haystack, child);
+                    new Haystack(child);
                 }
             }
         }
