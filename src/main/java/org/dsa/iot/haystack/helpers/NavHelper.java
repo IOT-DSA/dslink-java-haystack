@@ -73,7 +73,8 @@ public class NavHelper {
             }
 
             // Handle child
-            NodeBuilder builder = Utils.getBuilder(node, name);
+            String encoded = StringUtils.encodeName(name);
+            NodeBuilder builder = Utils.getBuilder(node, encoded);
             HVal navId = row.get("navId", false);
             if (navId != null) {
                 builder.setHasChildren(true);
@@ -85,6 +86,8 @@ public class NavHelper {
             }
             if (dis != null) {
                 builder.setDisplayName(dis.toString());
+            } else if (!encoded.equals(name)) {
+                builder.setDisplayName(name);
             }
 
             builder.setSerializable(false);
@@ -156,13 +159,17 @@ public class NavHelper {
 
             // Handle child
             HVal val = row.get("equipRef");
-            String ref = StringUtils.encodeName(((HRef) val).val);
-            Node n = node.getParent().getChild(ref);
+            String ref = ((HRef) val).val;
+            String encoded = StringUtils.encodeName(ref);
+            Node n = node.getParent().getChild(encoded);
             if (n == null) {
-                n = node.createChild(ref).build();
+                n = node.createChild(encoded) //double encoded have to leave
+                        .setDisplayName(ref)
+                        .build();
             }
 
-            NodeBuilder builder = Utils.getBuilder(n, name);
+            encoded = StringUtils.encodeName(name);
+            NodeBuilder builder = Utils.getBuilder(n, encoded);
             HVal navId = row.get("navId", false);
             if (navId != null) {
                 builder.setHasChildren(true);
@@ -174,6 +181,8 @@ public class NavHelper {
             }
             if (dis != null) {
                 builder.setDisplayName(dis.toString());
+            } else if (!encoded.equals(name)) {
+                builder.setDisplayName(name);
             }
 
             builder.setSerializable(false);
@@ -290,7 +299,7 @@ public class NavHelper {
         } else {
             name = row.dis();
         }
-        return StringUtils.encodeName(name);
+        return name;
     }
 
     static {

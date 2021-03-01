@@ -86,7 +86,7 @@ public class ServerActions {
         return new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(ActionResult event) {
-                node.getParent().removeChild(node);
+                node.getParent().removeChild(node, false);
                 haystack.stop();
                 LOGGER.info("Removed server {}", node.getPath());
             }

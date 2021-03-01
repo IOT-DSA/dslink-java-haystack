@@ -188,10 +188,10 @@ public class Utils {
     }
 
     public static NodeBuilder getBuilder(Node parent, String childName) {
-        if (parent.hasChild(childName)) {
-            return parent.getChild(childName).createFakeBuilder();
+        if (parent.hasChild(childName,false)) {
+            return parent.getChild(childName, false).createFakeBuilder();
         } else {
-            return parent.createChild(childName);
+            return parent.createChild(childName, false);
         }
     }
 

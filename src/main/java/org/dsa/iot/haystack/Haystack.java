@@ -10,12 +10,18 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.NodeBuilder;
+import org.dsa.iot.dslink.node.Permission;
 import org.dsa.iot.dslink.node.actions.Action;
+import org.dsa.iot.dslink.node.actions.ActionResult;
+import org.dsa.iot.dslink.node.actions.EditorType;
+import org.dsa.iot.dslink.node.actions.Parameter;
+import org.dsa.iot.dslink.node.actions.ResultType;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
 import org.dsa.iot.dslink.util.Objects;
 import org.dsa.iot.dslink.util.StringUtils;
 import org.dsa.iot.dslink.util.handler.Handler;
+import org.dsa.iot.haystack.actions.Actions;
 import org.dsa.iot.haystack.actions.ServerActions;
 import org.dsa.iot.haystack.helpers.ConnectionHelper;
 import org.dsa.iot.haystack.helpers.NavHelper;
@@ -228,6 +234,57 @@ public class Haystack {
                 }
             }
         }
+
+        builder = Utils.getBuilder(superRoot, "eval");
+        builder.setDisplayName("Eval");
+        builder.setSerializable(false);
+        Action a = new Action(Permission.READ, new Handler<ActionResult>() {
+            @Override
+            public void handle(final ActionResult result) {
+                try {
+                    Value vUrl = result.getParameter("URL", ValueType.STRING);
+                    Value vUser = result.getParameter("Username", ValueType.STRING);
+                    Value vPass = result.getParameter("Password");
+                    Value vExpr = result.getParameter("Expression", ValueType.STRING);
+                    Value vConnect = result.getParameter("Connect Timeout", ValueType.NUMBER);
+                    Value vRead = result.getParameter("Read Timeout", ValueType.NUMBER);
+                    HClient client = HClient.open(
+                            vUrl.getString(),
+                            vUser.getString(),
+                            vPass.getString(),
+                            vConnect.getNumber().intValue() * 1000,
+                            vRead.getNumber().intValue() * 1000);
+                    HGrid grid = client.eval(vExpr.getString());
+                    if (grid != null) {
+                        Actions.buildTable(grid, result);
+                    } else {
+                        result.getTable().close();
+                    }
+                } catch (RuntimeException x) {
+                    LOGGER.error("Root Eval Action", x);
+                    throw x;
+                }
+            }
+        });
+        a.addParameter(new Parameter("Expression", ValueType.STRING));
+        a.addParameter(new Parameter("URL", ValueType.STRING));
+        a.addParameter(new Parameter("Username", ValueType.STRING));
+        Parameter p = new Parameter("Password", ValueType.STRING);
+        p.setEditorType(EditorType.PASSWORD);
+        a.addParameter(p);
+
+        p = new Parameter("Connect Timeout", ValueType.NUMBER);
+        p.setDefaultValue(new Value(30));
+        p.setDescription("Seconds");
+        a.addParameter(p);
+
+        p = new Parameter("Read Timeout", ValueType.NUMBER);
+        p.setDefaultValue(new Value(30));
+        p.setDescription("Seconds");
+        a.addParameter(p);
+
+        a.setResultType(ResultType.TABLE);
+        builder.setAction(a).build();
     }
 
     public boolean isEnabled() {
