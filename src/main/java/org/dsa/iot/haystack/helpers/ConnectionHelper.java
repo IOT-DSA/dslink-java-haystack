@@ -148,15 +148,20 @@ public class ConnectionHelper {
             } else {
                 throw cee;
             }
-        } catch (CallNetworkException cne) {
+        } catch (RuntimeException x) {
             close();
-            Throwable t = cne.getCause();
+            boolean rethrow = true;
+            Throwable t = x.getCause();
             if (t instanceof CallHttpException) {
                 String s = t.getMessage();
                 if (s.startsWith("303")) {
                     LOGGER.debug("303 error, reconnecting to {}", url);
                     getClient(onClientReceived);
+                    rethrow = false;
                 }
+            }
+            if (rethrow) {
+                throw x;
             }
         }
     }
@@ -235,15 +240,17 @@ public class ConnectionHelper {
                     onConnected.handle(client);
                 }
                 ListHandler.get().handle(haystack.getNode());
+            } catch (CallErrException cee) {
+                statusNode.setValue(new Value("Connected")); //error with call, not connection
+                LOGGER.warn("Call error {} : {}", url, cee.getMessage());
             } catch (RuntimeException e) {
                 Throwable cause = e.getCause();
                 String err = String.format("Unable to connect to %s : %s : %s", url, e.getMessage(),
                                            cause != null ? cause.getMessage() : "");
                 if (haystack.isEnabled()) {
                     statusNode.setValue(new Value(err));
-                } else {
-                    close();
                 }
+                close();
                 LOGGER.warn(err);
             }
         }
