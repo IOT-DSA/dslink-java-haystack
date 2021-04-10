@@ -256,7 +256,7 @@ public class Haystack {
                             vRead.getNumber().intValue() * 1000);
                     HGrid grid = client.eval(vExpr.getString());
                     if (grid != null) {
-                        Actions.buildTable(grid, result);
+                        Actions.buildTable(grid, result, false);
                     } else {
                         result.getTable().close();
                     }

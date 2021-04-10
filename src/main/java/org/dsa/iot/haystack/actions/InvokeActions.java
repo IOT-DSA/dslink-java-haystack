@@ -59,7 +59,7 @@ public class InvokeActions {
                             }
                         }
                         HGrid res = client.invokeAction(id, act, b.toDict());
-                        Actions.buildTable(res, event);
+                        Actions.buildTable(res, event, false);
                         latch.countDown();
                     }
                 });
@@ -107,7 +107,7 @@ public class InvokeActions {
                             Utils.argToDict(b, name, val);
                         }
                         HGrid res = client.invokeAction(id, act, b.toDict());
-                        Actions.buildTable(res, event);
+                        Actions.buildTable(res, event, false);
                         latch.countDown();
                     }
                 });

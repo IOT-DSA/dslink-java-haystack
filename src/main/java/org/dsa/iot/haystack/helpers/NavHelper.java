@@ -9,6 +9,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.NodeBuilder;
 import org.dsa.iot.dslink.node.NodeListener;
+import org.dsa.iot.dslink.node.actions.Action;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.util.Objects;
 import org.dsa.iot.dslink.util.StringUtils;
@@ -16,6 +17,7 @@ import org.dsa.iot.dslink.util.handler.Handler;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
 import org.dsa.iot.haystack.actions.Actions;
+import org.dsa.iot.haystack.actions.GetHistory;
 import org.dsa.iot.haystack.actions.InvokeActions;
 import org.dsa.iot.haystack.handlers.ClosedHandler;
 import org.dsa.iot.haystack.handlers.ListHandler;
@@ -24,6 +26,7 @@ import org.projecthaystack.HMarker;
 import org.projecthaystack.HRef;
 import org.projecthaystack.HRow;
 import org.projecthaystack.HStr;
+import org.projecthaystack.HTimeZone;
 import org.projecthaystack.HVal;
 import org.projecthaystack.io.HZincReader;
 import org.slf4j.Logger;
@@ -250,6 +253,12 @@ public class NavHelper {
     private void iterateRow(Node node, HRow row) {
         SubscriptionController subController = getSubController(node, row);
         Iterator<?> it = row.iterator();
+        Node curVal = null;
+        String id = null;
+        String kind = null;
+        String tz = null;
+        boolean his = false;
+        boolean writable = false;
         while (it.hasNext()) {
             Map.Entry entry = (Map.Entry) it.next();
             String name = (String) entry.getKey();
@@ -264,6 +273,26 @@ public class NavHelper {
             if (child == null) {
                 child = node.createChild(name).build();
             }
+            switch (name) {
+                case "curVal":
+                    curVal = child;
+                    break;
+                case "his":
+                    his = val instanceof HMarker;
+                    break;
+                case "id":
+                    id = val.toString();
+                    break;
+                case "kind":
+                    kind = val.toString();
+                    break;
+                case "tz":
+                    tz = val.toString();
+                    break;
+                case "writable":
+                    writable = val instanceof HMarker;
+                    break;
+            }
             child.setValueType(value.getType());
             child.setValue(value);
 
@@ -272,6 +301,24 @@ public class NavHelper {
             listener.setOnUnsubscribeHandler(subController.getUnsubHandler());
             if (child.getLink().getSubscriptionManager().hasValueSub(child)) {
                 subController.childSubscribed(child);
+            }
+        }
+        if ((curVal != null) && (id != null)) {
+            Action a;
+            if (writable && (kind != null)) {
+                a = Actions.getSetAction(haystack, HRef.make(id), kind);
+                curVal.createChild("set", false)
+                      .setAction(a)
+                      .setDisplayName("Set")
+                      .build();
+            }
+            if (his) {
+                HTimeZone htz = null;
+                if (tz != null) {
+                    htz = HTimeZone.make(tz, false);
+                }
+                new GetHistory(curVal, haystack, HRef.make(id), htz);
+                //new GetHistory(node, haystack, HRef.make(id), htz);
             }
         }
     }
