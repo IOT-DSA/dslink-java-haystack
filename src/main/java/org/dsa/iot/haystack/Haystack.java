@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
 public class Haystack {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Haystack.class);
-    private ConnectionHelper conn;
+    private final ConnectionHelper conn;
     private final NavHelper navHelper;
     private final Node node;
     private ScheduledFuture<?> pollFuture;

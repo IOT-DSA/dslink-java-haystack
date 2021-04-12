@@ -130,7 +130,7 @@ public class NavHelper {
 
             // Handle navId
             if (navId != null) {
-                LOGGER.debug("Received navId of {}", navId.toString());
+                LOGGER.debug("Received navId of {}", navId);
 
                 // Ensure proper data is attached to child
                 child.setRoConfig("navId", new Value(navId.toZinc()));
@@ -225,7 +225,7 @@ public class NavHelper {
 
             // Handle navId
             if (navId != null) {
-                LOGGER.debug("Received navId of {}", navId.toString());
+                LOGGER.debug("Received navId of {}", navId);
 
                 // Ensure proper data is attached to child
                 child.setRoConfig("navId", new Value(navId.toZinc()));

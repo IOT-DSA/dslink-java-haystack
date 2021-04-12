@@ -55,9 +55,9 @@ public class GetHistory implements Handler<ActionResult> {
     private static final Parameter TIMESTAMP = new Parameter("timestamp", ValueType.TIME);
     private static final Parameter VALUE = new Parameter("value", ValueType.DYNAMIC);
 
-    private Haystack haystack;
-    private HRef id;
-    private HTimeZone tz;
+    private final Haystack haystack;
+    private final HRef id;
+    private final HTimeZone tz;
 
     static {
         List<String> enums = new ArrayList<>();
@@ -252,10 +252,10 @@ public class GetHistory implements Handler<ActionResult> {
         b.build();
     }
 
-    private class QueryProcessor implements Runnable {
+    private static class QueryProcessor implements Runnable {
 
-        private HGrid grid;
-        private CompleteHandler<QueryData> handler;
+        private final HGrid grid;
+        private final CompleteHandler<QueryData> handler;
 
         QueryProcessor(HGrid grid, CompleteHandler<QueryData> handler) {
             this.grid = grid;

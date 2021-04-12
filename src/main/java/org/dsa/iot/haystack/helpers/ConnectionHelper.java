@@ -42,7 +42,7 @@ public class ConnectionHelper {
     private volatile String url;
     private volatile int connectTimeout;
     private volatile int readTimeout;
-    private Node statusNode;
+    private final Node statusNode;
 
     private ScheduledFuture<?> connectFuture;
     private HClient client;

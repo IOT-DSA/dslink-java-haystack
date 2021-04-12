@@ -33,7 +33,7 @@ public class Main extends DSLinkHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
     private DSLink link;
-    private Object subFailLock = new Object();
+    private final Object subFailLock = new Object();
 
     @Override
     public boolean isResponder() {
@@ -72,8 +72,7 @@ public class Main extends DSLinkHandler {
         Node superRoot = manager.getSuperRoot();
         try {
             Thread.sleep(2000);
-        } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
+        } catch (InterruptedException ignore) {
         }
         synchronized (subFailLock) {
             Node node = manager.getNode(path, false, false).getNode();
@@ -89,8 +88,7 @@ public class Main extends DSLinkHandler {
                     tries++;
                     try {
                         subFailLock.wait(200);
-                    } catch (InterruptedException e) {
-                        // TODO Auto-generated catch block
+                    } catch (InterruptedException ignore) {
                     }
                     next = n.getChild(split[i], false);
                 }
@@ -199,19 +197,4 @@ public class Main extends DSLinkHandler {
 
         Node node;
     }
-
-//    public class TrustAllX509TrustManager implements X509TrustManager {
-//        public X509Certificate[] getAcceptedIssuers() {
-//            return new X509Certificate[0];
-//        }
-//
-//        public void checkClientTrusted(java.security.cert.X509Certificate[] certs,
-//                String authType) {
-//        }
-//
-//        public void checkServerTrusted(java.security.cert.X509Certificate[] certs,
-//                String authType) {
-//        }
-//
-//    }
 }
