@@ -1,6 +1,7 @@
 package org.dsa.iot.haystack.actions;
 
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 import org.dsa.iot.dslink.methods.StreamState;
 import org.dsa.iot.dslink.node.Permission;
@@ -29,11 +30,15 @@ import org.projecthaystack.HRow;
 import org.projecthaystack.HStr;
 import org.projecthaystack.HVal;
 import org.projecthaystack.client.HClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Samuel Grenier
  */
 public class Actions {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Actions.class);
 
     public static Action getSubscribeAction(final Haystack haystack) {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
@@ -111,7 +116,7 @@ public class Actions {
                         }
 
                         HVal val = null;
-                        if (vValue != null) {
+                        if ((vValue != null) && !vValue.getString().isEmpty()) {
                             String type;
                             if (kind != null) {
                                 type = kind.toLowerCase();
@@ -158,25 +163,7 @@ public class Actions {
                             String unit = vDurUnit.getString();
                             dur = HNum.make(vDur.getNumber().intValue(), unit);
                         }
-                        HGrid grid = client.pointWrite(id, level, who, val, dur);
-                        HRow row = grid.row(level - 1);
-                        Row r = new Row();
-
-                        String[] res = new String[]{
-                                "level",
-                                "levelDis",
-                                "val",
-                                "who"
-                        };
-                        for (String s : res) {
-                            val = row.get(s, false);
-                            if (val != null) {
-                                r.addValue(Utils.hvalToVal(val));
-                            } else {
-                                r.addValue(null);
-                            }
-                        }
-                        event.getTable().addRow(r);
+                        client.pointWrite(id, level, who, val, dur);
                     }
                 });
             }
@@ -249,22 +236,63 @@ public class Actions {
             p.setDescription("Duration unit.");
             a.addParameter(p);
         }
-        {
-            Parameter p = new Parameter("level", ValueType.NUMBER);
-            a.addResult(p);
+        return a;
+    }
+
+    public static Action getSetAction(final Haystack haystack,
+                                      final HRef treeId,
+                                      final String kind) {
+        final String type = kind.toLowerCase(Locale.ROOT);
+        final ValueType valueType;
+        switch (type) {
+            case "bool":
+                valueType = ValueType.BOOL;
+                break;
+            case "number":
+                valueType = ValueType.NUMBER;
+                break;
+            case "str":
+                valueType = ValueType.STRING;
+                break;
+            default:
+                throw new RuntimeException("Unknown type: " + kind);
         }
-        {
-            Parameter p = new Parameter("levelDis", ValueType.STRING);
-            a.addResult(p);
-        }
-        {
-            Parameter p = new Parameter("val", ValueType.DYNAMIC);
-            a.addResult(p);
-        }
-        {
-            Parameter p = new Parameter("who", ValueType.STRING);
-            a.addResult(p);
-        }
+        Action a = new Action(Permission.WRITE, new Handler<ActionResult>() {
+            @Override
+            public void handle(final ActionResult event) {
+                if (!haystack.isEnabled()) {
+                    throw new IllegalStateException("Disabled");
+                }
+                haystack.getConnHelper().getClient(new StateHandler<HClient>() {
+                    @Override
+                    public void handle(HClient client) {
+                        Value vValue = event.getParameter("Value");
+
+                        HRef id = treeId;
+                        if (id == null) {
+                            Value vId = event.getParameter("ID", ValueType.STRING);
+                            id = Utils.idToRef(vId);
+                        }
+
+                        HVal val;
+                        switch (type) {
+                            case "bool":
+                                val = HBool.make(vValue.getBool());
+                                break;
+                            case "number":
+                                val = HNum.make(vValue.getNumber().doubleValue());
+                                break;
+                            default:
+                                val = HStr.make(vValue.getString());
+                                break;
+                        }
+                        client.pointWrite(id, 17, null, val, null);
+                    }
+                });
+            }
+        });
+        Parameter p = new Parameter("Value", valueType);
+        a.addParameter(p);
         return a;
     }
 
@@ -287,7 +315,7 @@ public class Actions {
                     @Override
                     public void handle(HGrid grid) {
                         if (grid != null) {
-                            buildTable(grid, event);
+                            buildTable(grid, event, false);
                         }
                     }
                 });
@@ -314,7 +342,7 @@ public class Actions {
                     @Override
                     public void handle(HGrid grid) {
                         if (grid != null) {
-                            buildTable(grid, event);
+                            buildTable(grid, event, false);
                         } else {
                             event.getTable().close();
                         }
@@ -351,7 +379,7 @@ public class Actions {
                     @Override
                     public void handle(HGrid grid) {
                         if (grid != null) {
-                            buildTable(grid, event);
+                            buildTable(grid, event, false);
                         }
                     }
                 });
@@ -364,7 +392,63 @@ public class Actions {
         return a;
     }
 
-    public static void buildTable(HGrid in, ActionResult out) {
+    /* todo Save for awhile
+    public static Action getHistoryAction(final Haystack haystack,
+                                          final HRef treeId,
+                                          final TimeZone tz) {
+        Action a = new Action(Permission.READ, new Handler<ActionResult>() {
+            @Override
+            public void handle(final ActionResult event) {
+                if (!haystack.isEnabled()) {
+                    throw new IllegalStateException("Disabled");
+                }
+                Value vRange = event.getParameter("Timerange", ValueType.STRING);
+                String range = vRange.getString();
+                String[] split = range.split("/");
+                Calendar cal = TimeUtils.decode(split[0], null);
+                if (tz != null) {
+                    cal.setTimeZone(tz);
+                }
+                StringBuilder buf = new StringBuilder();
+                TimeUtils.encode(cal, true, buf);
+                buf.append(',');
+                TimeUtils.decode(split[1], cal);
+                if (tz != null) {
+                    cal.setTimeZone(tz);
+                }
+                TimeUtils.encode(cal, true, buf);
+                HGridBuilder builder = new HGridBuilder();
+                builder.addCol("id");
+                builder.addCol("range");
+                builder.addRow(new HVal[]{
+                        HRef.make(treeId.toString()),
+                        HStr.make(buf.toString())
+                });
+
+                haystack.call("hisRead", builder.toGrid(), new Handler<HGrid>() {
+                    @Override
+                    public void handle(HGrid grid) {
+                        if (grid != null) {
+                            buildTable(grid, event, true);
+                        }
+                    }
+                });
+
+            }
+        });
+        //parameters
+        Parameter param = new Parameter("Timerange", ValueType.STRING);
+        param.setEditorType(EditorType.DATE_RANGE);
+        a.addParameter(param);
+        //results
+        a.addResult(new Parameter("timestamp", ValueType.TIME));
+        a.addResult(new Parameter("value", ValueType.DYNAMIC));
+        a.setResultType(ResultType.TABLE);
+        return a;
+    }
+    */
+
+    public static void buildTable(HGrid in, ActionResult out, boolean historyColNames) {
         Table t = out.getTable();
 
         {
@@ -387,7 +471,15 @@ public class Actions {
 
         for (int i = 0; i < in.numCols(); i++) {
             HCol col = in.col(i);
-            Parameter p = new Parameter(col.name(), ValueType.DYNAMIC);
+            String name = col.name();
+            if (historyColNames) {
+                if ("ts".equals(name)) {
+                    name = "timestamp";
+                } else if ("val".equals(name)) {
+                    name = "value";
+                }
+            }
+            Parameter p = new Parameter(name, ValueType.DYNAMIC);
 
             HDict meta = col.meta();
             if (meta != null && !meta.isEmpty()) {
@@ -395,7 +487,7 @@ public class Actions {
                 JsonObject metaObj = new JsonObject();
                 while (it.hasNext()) {
                     Map.Entry entry = (Map.Entry) it.next();
-                    String name = (String) entry.getKey();
+                    name = (String) entry.getKey();
                     if (name != null) {
                         HVal val = (HVal) entry.getValue();
                         Value value = Utils.hvalToVal(val);

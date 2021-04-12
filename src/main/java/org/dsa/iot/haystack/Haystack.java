@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
 public class Haystack {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Haystack.class);
-    private ConnectionHelper conn;
+    private final ConnectionHelper conn;
     private final NavHelper navHelper;
     private final Node node;
     private ScheduledFuture<?> pollFuture;
@@ -256,7 +256,7 @@ public class Haystack {
                             vRead.getNumber().intValue() * 1000);
                     HGrid grid = client.eval(vExpr.getString());
                     if (grid != null) {
-                        Actions.buildTable(grid, result);
+                        Actions.buildTable(grid, result, false);
                     } else {
                         result.getTable().close();
                     }
