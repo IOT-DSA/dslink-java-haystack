@@ -1,6 +1,6 @@
 {
   "name": "dslink-java-haystack",
-  "version": "0.6.0",
+  "version": "0.7.0-SNAPSHOT-F",
   "description": "An implementation dslink of a haystack protocol consumer",
   "license": "Apache",
   "author": {

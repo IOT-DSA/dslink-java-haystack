@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import org.dsa.iot.dslink.methods.StreamState;
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.NodeBuilder;
@@ -24,6 +25,7 @@ import org.dsa.iot.dslink.provider.LoopProvider;
 import org.dsa.iot.dslink.util.TimeUtils;
 import org.dsa.iot.dslink.util.handler.CompleteHandler;
 import org.dsa.iot.dslink.util.handler.Handler;
+import org.dsa.iot.dslink.util.json.JsonObject;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
 import org.dsa.iot.historian.stats.interval.IntervalParser;
@@ -32,6 +34,7 @@ import org.dsa.iot.historian.stats.rollup.Rollup;
 import org.dsa.iot.historian.utils.QueryData;
 import org.projecthaystack.HCol;
 import org.projecthaystack.HDateTime;
+import org.projecthaystack.HDict;
 import org.projecthaystack.HGrid;
 import org.projecthaystack.HGridBuilder;
 import org.projecthaystack.HRef;
@@ -55,6 +58,7 @@ public class GetHistory implements Handler<ActionResult> {
     private static final Parameter TIMESTAMP = new Parameter("timestamp", ValueType.TIME);
     private static final Parameter VALUE = new Parameter("value", ValueType.DYNAMIC);
 
+    private Node actionNode;
     private final Haystack haystack;
     private final HRef id;
     private final HTimeZone tz;
@@ -91,6 +95,10 @@ public class GetHistory implements Handler<ActionResult> {
         }
         this.tz = tz;
         initAction(node);
+    }
+
+    public Node getActionNode() {
+        return actionNode;
     }
 
     @Override
@@ -137,7 +145,7 @@ public class GetHistory implements Handler<ActionResult> {
         final StringBuilder buffer = new StringBuilder();
         final Calendar calendar = TimeUtils.reuseCalendar();
         calendar.setTimeZone(tz.java);
-        query(from, to, new CompleteHandler<QueryData>() {
+        query(table, from, to, new CompleteHandler<QueryData>() {
 
             private List<QueryData> updates = new LinkedList<>();
 
@@ -170,7 +178,7 @@ public class GetHistory implements Handler<ActionResult> {
         });
     }
 
-    protected void query(long from, long to, final CompleteHandler<QueryData> handler) {
+    protected void query(final Table table, long from, long to, final CompleteHandler<QueryData> handler) {
         StringBuilder buf = new StringBuilder();
         buf.append(HDateTime.make(from, tz));
         buf.append(',');
@@ -186,7 +194,7 @@ public class GetHistory implements Handler<ActionResult> {
         haystack.call("hisRead", builder.toGrid(), new Handler<HGrid>() {
             @Override
             public void handle(HGrid grid) {
-                LoopProvider.getProvider().schedule(new QueryProcessor(grid, handler));
+                LoopProvider.getProvider().schedule(new QueryProcessor(table, grid, handler));
             }
         });
     }
@@ -246,24 +254,42 @@ public class GetHistory implements Handler<ActionResult> {
         a.setResultType(ResultType.STREAM);
 
         NodeBuilder b = node.createChild("getHistory", false);
+        b.setProfile("getHistory_");
         b.setDisplayName("Get History");
         b.setSerializable(false);
         b.setAction(a);
-        b.build();
+        actionNode = b.build();
     }
 
     private static class QueryProcessor implements Runnable {
 
         private final HGrid grid;
         private final CompleteHandler<QueryData> handler;
+        private final Table table;
 
-        QueryProcessor(HGrid grid, CompleteHandler<QueryData> handler) {
+        QueryProcessor(Table table, HGrid grid, CompleteHandler<QueryData> handler) {
             this.grid = grid;
             this.handler = handler;
+            this.table = table;
         }
 
         public void run() {
             try {
+                HDict meta = grid.meta();
+                if (meta != null && !meta.isEmpty()) {
+                    Iterator<?> it = meta.iterator();
+                    JsonObject metaObj = new JsonObject();
+                    while (it.hasNext()) {
+                        Map.Entry entry = (Map.Entry) it.next();
+                        String name = (String) entry.getKey();
+                        if (name != null) {
+                            HVal val = (HVal) entry.getValue();
+                            Value value = Utils.hvalToVal(val);
+                            metaObj.put(name, value);
+                        }
+                    }
+                    table.setTableMeta(metaObj);
+                }
                 HCol ts = grid.col("ts");
                 HCol val = grid.col("val");
                 Iterator it = grid.iterator();

@@ -151,11 +151,7 @@ public class Utils {
         subNode.setSerializable(false);
         subNode.build();
 
-        NodeBuilder writeNode = getBuilder(node, "pointWrite");
-        writeNode.setDisplayName("Point Write");
-        writeNode.setAction(Actions.getPointWriteAction(haystack));
-        writeNode.setSerializable(false);
-        writeNode.build();
+        Actions.getPointWriteAction(haystack, node);
 
         NodeBuilder invokeNode = getBuilder(node, "invoke");
         invokeNode.setDisplayName("Invoke");

@@ -9,7 +9,6 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.NodeBuilder;
 import org.dsa.iot.dslink.node.NodeListener;
-import org.dsa.iot.dslink.node.actions.Action;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.util.Objects;
 import org.dsa.iot.dslink.util.StringUtils;
@@ -100,15 +99,9 @@ public class NavHelper {
             final HVal writable = row.get("writable", false);
             if (writable instanceof HMarker) {
                 HRef id = row.id();
-                NodeBuilder b = Utils.getBuilder(child, "pointWrite");
-                b.setDisplayName("Point Write");
-                b.setSerializable(false);
-
                 HVal hKind = row.get("kind", false);
                 String kind = hKind.toString();
-
-                b.setAction(Actions.getPointWriteAction(haystack, id, kind));
-                b.build();
+                Actions.getPointWriteAction(haystack, child, id, kind);
             }
 
             // Handle actions
@@ -164,11 +157,13 @@ public class NavHelper {
             HVal val = row.get("equipRef");
             String ref = ((HRef) val).val;
             String encoded = StringUtils.encodeName(ref);
-            Node n = node.getParent().getChild(encoded);
+            Node n = node.getParent().getChild(encoded, false);
             if (n == null) {
-                n = node.createChild(encoded) //double encoded have to leave
-                        .setDisplayName(ref)
-                        .build();
+                if (encoded.equals(node.getName())) {
+                    n = node;
+                } else {
+                    n = node.createChild(encoded, false).build();
+                }
             }
 
             encoded = StringUtils.encodeName(name);
@@ -195,15 +190,9 @@ public class NavHelper {
             final HVal writable = row.get("writable", false);
             if (writable instanceof HMarker) {
                 HRef id = row.id();
-                NodeBuilder b = Utils.getBuilder(child, "pointWrite");
-                b.setDisplayName("Point Write");
-                b.setSerializable(false);
-
                 HVal hKind = row.get("kind", false);
                 String kind = hKind.toString();
-
-                b.setAction(Actions.getPointWriteAction(haystack, id, kind));
-                b.build();
+                Actions.getPointWriteAction(haystack, child, id, kind);
             }
 
             // Handle actions
@@ -254,10 +243,10 @@ public class NavHelper {
         SubscriptionController subController = getSubController(node, row);
         Iterator<?> it = row.iterator();
         Node curVal = null;
+        Node his = null;
         String id = null;
         String kind = null;
         String tz = null;
-        boolean his = false;
         boolean writable = false;
         while (it.hasNext()) {
             Map.Entry entry = (Map.Entry) it.next();
@@ -269,16 +258,23 @@ public class NavHelper {
                 continue;
             }
 
-            Node child = node.getChild(name);
+            Node child = node.getChild(name, true);
             if (child == null) {
-                child = node.createChild(name).build();
+                child = node.createChild(name, true).build();
             }
+            child.setValueType(value.getType());
+            child.setValue(value);
+            boolean hasAction = false;
             switch (name) {
                 case "curVal":
                     curVal = child;
+                    hasAction = true;
                     break;
                 case "his":
-                    his = val instanceof HMarker;
+                    if (val instanceof HMarker) {
+                        his = child;
+                        hasAction = true;
+                    }
                     break;
                 case "id":
                     id = val.toString();
@@ -292,9 +288,12 @@ public class NavHelper {
                 case "writable":
                     writable = val instanceof HMarker;
                     break;
+                default:
+                    child.setHasChildren(false);
             }
-            child.setValueType(value.getType());
-            child.setValue(value);
+            if (!hasAction) {
+                child.setHasChildren(false);
+            }
 
             NodeListener listener = child.getListener();
             listener.setOnSubscribeHandler(subController.getSubHandler());
@@ -303,22 +302,19 @@ public class NavHelper {
                 subController.childSubscribed(child);
             }
         }
-        if ((curVal != null) && (id != null)) {
-            Action a;
-            if (writable && (kind != null)) {
-                a = Actions.getSetAction(haystack, HRef.make(id), kind);
-                curVal.createChild("set", false)
-                      .setAction(a)
-                      .setDisplayName("Set")
-                      .build();
-            }
-            if (his) {
+        if (id != null) { //add getHistory and set
+            HRef hid = HRef.make(id);
+            if (his != null) {
                 HTimeZone htz = null;
                 if (tz != null) {
                     htz = HTimeZone.make(tz, false);
                 }
-                new GetHistory(curVal, haystack, HRef.make(id), htz);
-                //new GetHistory(node, haystack, HRef.make(id), htz);
+                new GetHistory(his, haystack, hid, htz);
+                //add to parent, but sometimes parent shows in metrics rather than nav tree
+                //new GetHistory(node, haystack, hid, htz);
+            }
+            if ((curVal != null) && writable && (kind != null)) {
+                Actions.getSetAction(haystack, curVal, hid, kind);
             }
         }
     }
@@ -338,9 +334,17 @@ public class NavHelper {
         return subController;
     }
 
+    private String getDisplayName(HRow row) {
+        HVal val = row.get("navName", false);
+        if (val != null) {
+            return val.toString();
+        }
+        return getName(row);
+    }
+
     private String getName(HRow row) {
         HRef id = (HRef) row.get("id", false);
-        String name;
+        String name = null;
         if (id != null) {
             name = id.val;
         } else {
