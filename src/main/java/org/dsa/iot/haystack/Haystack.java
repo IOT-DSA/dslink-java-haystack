@@ -178,7 +178,7 @@ public class Haystack {
         }
 
         Action a = ServerActions.getEditAction(node);
-        node.getChild("editServer").setAction(a);
+        node.getChild("editServer", false).setAction(a);
 
     }
 

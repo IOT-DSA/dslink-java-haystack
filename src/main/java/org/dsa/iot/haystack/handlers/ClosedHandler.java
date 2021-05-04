@@ -59,13 +59,13 @@ public class ClosedHandler implements Handler<Node> {
         if (children != null) {
             for (Node n : children.values()) {
                 if (n != null && (n.getValue() == null)) {
-                    removeNodes(node);
+                    removeNodes(n);
                 }
             }
         }
         if (!man.hasValueSub(node)) {
             LOGGER.debug("Removed: {}", node.getPath());
-            node.getParent().removeChild(node);
+            node.getParent().removeChild(node, false);
         }
     }
 

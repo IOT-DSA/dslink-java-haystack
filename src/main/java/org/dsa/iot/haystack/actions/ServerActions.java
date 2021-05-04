@@ -9,6 +9,7 @@ import org.dsa.iot.dslink.node.actions.EditorType;
 import org.dsa.iot.dslink.node.actions.Parameter;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.node.value.ValueType;
+import org.dsa.iot.dslink.util.StringUtils;
 import org.dsa.iot.dslink.util.handler.Handler;
 import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
@@ -39,7 +40,7 @@ public class ServerActions {
                 String name = vName.getString();
                 String url = vUrl.getString();
 
-                NodeBuilder builder = Utils.getBuilder(parent, name);
+                NodeBuilder builder = Utils.getBuilder(parent, StringUtils.encodeName(name));
                 builder.setConfig("url", new Value(url));
                 String user = null;
                 if (vUser != null) {

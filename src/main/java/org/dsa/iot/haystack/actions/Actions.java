@@ -4,6 +4,8 @@ import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import org.dsa.iot.dslink.methods.StreamState;
+import org.dsa.iot.dslink.node.Node;
+import org.dsa.iot.dslink.node.NodeBuilder;
 import org.dsa.iot.dslink.node.Permission;
 import org.dsa.iot.dslink.node.actions.Action;
 import org.dsa.iot.dslink.node.actions.ActionResult;
@@ -79,13 +81,14 @@ public class Actions {
         return a;
     }
 
-    public static Action getPointWriteAction(Haystack haystack) {
-        return getPointWriteAction(haystack, null, null);
+    public static Node getPointWriteAction(Haystack haystack, Node parent) {
+        return getPointWriteAction(haystack, parent, null, null);
     }
 
-    public static Action getPointWriteAction(final Haystack haystack,
-                                             final HRef treeId,
-                                             final String kind) {
+    public static Node getPointWriteAction(final Haystack haystack,
+                                           final Node parent,
+                                           final HRef treeId,
+                                           final String kind) {
         Action a = new Action(Permission.READ, new Handler<ActionResult>() {
             @Override
             public void handle(final ActionResult event) {
@@ -236,12 +239,17 @@ public class Actions {
             p.setDescription("Duration unit.");
             a.addParameter(p);
         }
-        return a;
+        NodeBuilder writeNode = Utils.getBuilder(parent, "pointWrite");
+        writeNode.setDisplayName("Point Write");
+        writeNode.setSerializable(false);
+        writeNode.setAction(a);
+        return writeNode.build();
     }
 
-    public static Action getSetAction(final Haystack haystack,
-                                      final HRef treeId,
-                                      final String kind) {
+    public static Node getSetAction(final Haystack haystack,
+                                    final Node parent,
+                                    final HRef treeId,
+                                    final String kind) {
         final String type = kind.toLowerCase(Locale.ROOT);
         final ValueType valueType;
         switch (type) {
@@ -293,7 +301,10 @@ public class Actions {
         });
         Parameter p = new Parameter("Value", valueType);
         a.addParameter(p);
-        return a;
+        return parent.createChild("set", false)
+                     .setAction(a)
+                     .setDisplayName("Set")
+                     .build();
     }
 
     public static Action getReadAction(final Haystack haystack) {
@@ -391,62 +402,6 @@ public class Actions {
         a.setResultType(ResultType.TABLE);
         return a;
     }
-
-    /* todo Save for awhile
-    public static Action getHistoryAction(final Haystack haystack,
-                                          final HRef treeId,
-                                          final TimeZone tz) {
-        Action a = new Action(Permission.READ, new Handler<ActionResult>() {
-            @Override
-            public void handle(final ActionResult event) {
-                if (!haystack.isEnabled()) {
-                    throw new IllegalStateException("Disabled");
-                }
-                Value vRange = event.getParameter("Timerange", ValueType.STRING);
-                String range = vRange.getString();
-                String[] split = range.split("/");
-                Calendar cal = TimeUtils.decode(split[0], null);
-                if (tz != null) {
-                    cal.setTimeZone(tz);
-                }
-                StringBuilder buf = new StringBuilder();
-                TimeUtils.encode(cal, true, buf);
-                buf.append(',');
-                TimeUtils.decode(split[1], cal);
-                if (tz != null) {
-                    cal.setTimeZone(tz);
-                }
-                TimeUtils.encode(cal, true, buf);
-                HGridBuilder builder = new HGridBuilder();
-                builder.addCol("id");
-                builder.addCol("range");
-                builder.addRow(new HVal[]{
-                        HRef.make(treeId.toString()),
-                        HStr.make(buf.toString())
-                });
-
-                haystack.call("hisRead", builder.toGrid(), new Handler<HGrid>() {
-                    @Override
-                    public void handle(HGrid grid) {
-                        if (grid != null) {
-                            buildTable(grid, event, true);
-                        }
-                    }
-                });
-
-            }
-        });
-        //parameters
-        Parameter param = new Parameter("Timerange", ValueType.STRING);
-        param.setEditorType(EditorType.DATE_RANGE);
-        a.addParameter(param);
-        //results
-        a.addResult(new Parameter("timestamp", ValueType.TIME));
-        a.addResult(new Parameter("value", ValueType.DYNAMIC));
-        a.setResultType(ResultType.TABLE);
-        return a;
-    }
-    */
 
     public static void buildTable(HGrid in, ActionResult out, boolean historyColNames) {
         Table t = out.getTable();
