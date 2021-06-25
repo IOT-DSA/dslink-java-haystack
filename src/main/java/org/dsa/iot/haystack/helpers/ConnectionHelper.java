@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.value.Value;
@@ -42,6 +43,7 @@ public class ConnectionHelper {
     private volatile String url;
     private volatile int connectTimeout;
     private volatile int readTimeout;
+    private final Semaphore maxConcurrency;
     private final Node statusNode;
 
     private ScheduledFuture<?> connectFuture;
@@ -54,6 +56,10 @@ public class ConnectionHelper {
         this.haystack = haystack;
         this.watchEnabled = watchEnabled;
         this.watchDisabled = watchDisabled;
+        int maxConcurrent = Runtime.getRuntime().availableProcessors();
+        maxConcurrent = Math.max(5, maxConcurrent);
+        LOGGER.debug("Max Concurrent Requests: " + maxConcurrent);
+        maxConcurrency = new Semaphore(maxConcurrent, true);
 
         Node node = haystack.getNode();
         username = node.getConfig("username").getString();
@@ -135,6 +141,7 @@ public class ConnectionHelper {
 
     public void getClient(StateHandler<HClient> onClientReceived) {
         try {
+            maxConcurrency.acquireUninterruptibly();
             connect(onClientReceived);
         } catch (CallErrException cee) {
             if (onClientReceived != null && onClientReceived.incrementRetryCount() > 1) {
@@ -163,10 +170,33 @@ public class ConnectionHelper {
             if (rethrow) {
                 throw x;
             }
+        } finally {
+            maxConcurrency.release();
         }
     }
 
     private void connect(Handler<HClient> onConnected) {
+        synchronized (lock) {
+            if (connectFuture == null && client != null) {
+                //passthru
+            } else if (connectFuture != null) {
+                if (onConnected != null) {
+                    queue.add(onConnected);
+                }
+                return;
+            } else {
+                close();
+                ScheduledThreadPoolExecutor stpe = Objects.getDaemonThreadPool();
+                Connector c = new Connector(onConnected);
+                TimeUnit u = TimeUnit.SECONDS;
+                connectFuture = stpe.scheduleWithFixedDelay(c, 0, 5, u);
+                return;
+            }
+        }
+        if (onConnected != null) {
+            onConnected.handle(client);
+        }
+        /*
         synchronized (lock) {
             if (connectFuture == null && client != null) {
                 if (onConnected != null) {
@@ -185,6 +215,7 @@ public class ConnectionHelper {
             TimeUnit u = TimeUnit.SECONDS;
             connectFuture = stpe.scheduleWithFixedDelay(c, 0, 5, u);
         }
+        */
     }
 
     private class Connector implements Runnable {

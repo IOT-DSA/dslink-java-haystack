@@ -35,7 +35,7 @@ public class SubscriptionController {
         }
         if (wasEmpty) {
             if (id != null) {
-                LOGGER.info("Subscribing " + node.getDisplayName());
+                LOGGER.debug("Subscribing " + node.getDisplayName());
                 haystack.subscribe(id, node);
             }
         }
@@ -51,7 +51,7 @@ public class SubscriptionController {
         }
         if (empty) {
             if (id != null) {
-                LOGGER.info("Unsubscribing " + node.getDisplayName());
+                LOGGER.debug("Unsubscribing " + node.getDisplayName());
                 haystack.unsubscribe(id);
             }
         }
