@@ -43,7 +43,7 @@ public class ConnectionHelper {
     private volatile String url;
     private volatile int connectTimeout;
     private volatile int readTimeout;
-    private final Semaphore maxConcurrency;
+    private volatile Semaphore maxConnections;
     private final Node statusNode;
 
     private ScheduledFuture<?> connectFuture;
@@ -56,10 +56,7 @@ public class ConnectionHelper {
         this.haystack = haystack;
         this.watchEnabled = watchEnabled;
         this.watchDisabled = watchDisabled;
-        int maxConcurrent = Runtime.getRuntime().availableProcessors();
-        maxConcurrent = Math.max(5, maxConcurrent);
-        LOGGER.debug("Max Concurrent Requests: " + maxConcurrent);
-        maxConcurrency = new Semaphore(maxConcurrent, true);
+        this.maxConnections = new Semaphore(haystack.getMaxConnections(), true);
 
         Node node = haystack.getNode();
         username = node.getConfig("username").getString();
@@ -71,7 +68,7 @@ public class ConnectionHelper {
     }
 
     public void editConnection(String url, String user, String pass, int connTimeout,
-                               int readTimeout) {
+                               int readTimeout, int maxConnections) {
         close();
         statusNode.setValue(new Value("Not Connected"));
         this.url = url;
@@ -81,6 +78,7 @@ public class ConnectionHelper {
         }
         this.connectTimeout = connTimeout;
         this.readTimeout = readTimeout;
+        this.maxConnections = new Semaphore(maxConnections, true);
         getClient(null);
     }
 
@@ -140,9 +138,12 @@ public class ConnectionHelper {
     }
 
     public void getClient(StateHandler<HClient> onClientReceived) {
+        Semaphore semaphore = maxConnections;
         try {
-            maxConcurrency.acquireUninterruptibly();
+            semaphore.acquire();
             connect(onClientReceived);
+        } catch (InterruptedException x) {
+            throw new RuntimeException(x);
         } catch (CallErrException cee) {
             if (onClientReceived != null && onClientReceived.incrementRetryCount() > 1) {
                 throw cee;
@@ -171,7 +172,7 @@ public class ConnectionHelper {
                 throw x;
             }
         } finally {
-            maxConcurrency.release();
+            semaphore.release();
         }
     }
 
@@ -196,26 +197,6 @@ public class ConnectionHelper {
         if (onConnected != null) {
             onConnected.handle(client);
         }
-        /*
-        synchronized (lock) {
-            if (connectFuture == null && client != null) {
-                if (onConnected != null) {
-                    onConnected.handle(client);
-                }
-                return;
-            } else if (connectFuture != null) {
-                if (onConnected != null) {
-                    queue.add(onConnected);
-                }
-                return;
-            }
-            close();
-            ScheduledThreadPoolExecutor stpe = Objects.getDaemonThreadPool();
-            Connector c = new Connector(onConnected);
-            TimeUnit u = TimeUnit.SECONDS;
-            connectFuture = stpe.scheduleWithFixedDelay(c, 0, 5, u);
-        }
-        */
     }
 
     private class Connector implements Runnable {
