@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.value.Value;
@@ -42,6 +43,7 @@ public class ConnectionHelper {
     private volatile String url;
     private volatile int connectTimeout;
     private volatile int readTimeout;
+    private volatile Semaphore maxConnections;
     private final Node statusNode;
 
     private ScheduledFuture<?> connectFuture;
@@ -54,6 +56,7 @@ public class ConnectionHelper {
         this.haystack = haystack;
         this.watchEnabled = watchEnabled;
         this.watchDisabled = watchDisabled;
+        this.maxConnections = new Semaphore(haystack.getMaxConnections(), true);
 
         Node node = haystack.getNode();
         username = node.getConfig("username").getString();
@@ -65,7 +68,7 @@ public class ConnectionHelper {
     }
 
     public void editConnection(String url, String user, String pass, int connTimeout,
-                               int readTimeout) {
+                               int readTimeout, int maxConnections) {
         close();
         statusNode.setValue(new Value("Not Connected"));
         this.url = url;
@@ -75,6 +78,7 @@ public class ConnectionHelper {
         }
         this.connectTimeout = connTimeout;
         this.readTimeout = readTimeout;
+        this.maxConnections = new Semaphore(maxConnections, true);
         getClient(null);
     }
 
@@ -134,8 +138,12 @@ public class ConnectionHelper {
     }
 
     public void getClient(StateHandler<HClient> onClientReceived) {
+        Semaphore semaphore = maxConnections;
         try {
+            semaphore.acquire();
             connect(onClientReceived);
+        } catch (InterruptedException x) {
+            throw new RuntimeException(x);
         } catch (CallErrException cee) {
             if (onClientReceived != null && onClientReceived.incrementRetryCount() > 1) {
                 throw cee;
@@ -163,27 +171,31 @@ public class ConnectionHelper {
             if (rethrow) {
                 throw x;
             }
+        } finally {
+            semaphore.release();
         }
     }
 
     private void connect(Handler<HClient> onConnected) {
         synchronized (lock) {
             if (connectFuture == null && client != null) {
-                if (onConnected != null) {
-                    onConnected.handle(client);
-                }
-                return;
+                //passthru
             } else if (connectFuture != null) {
                 if (onConnected != null) {
                     queue.add(onConnected);
                 }
                 return;
+            } else {
+                close();
+                ScheduledThreadPoolExecutor stpe = Objects.getDaemonThreadPool();
+                Connector c = new Connector(onConnected);
+                TimeUnit u = TimeUnit.SECONDS;
+                connectFuture = stpe.scheduleWithFixedDelay(c, 0, 5, u);
+                return;
             }
-            close();
-            ScheduledThreadPoolExecutor stpe = Objects.getDaemonThreadPool();
-            Connector c = new Connector(onConnected);
-            TimeUnit u = TimeUnit.SECONDS;
-            connectFuture = stpe.scheduleWithFixedDelay(c, 0, 5, u);
+        }
+        if (onConnected != null) {
+            onConnected.handle(client);
         }
     }
 

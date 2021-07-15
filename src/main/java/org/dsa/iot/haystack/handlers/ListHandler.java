@@ -72,9 +72,9 @@ public class ListHandler implements Handler<Node> {
             public void run() {
                 if (navId != null) {
                     String path = event.getPath();
-                    LOGGER.info("Navigating: {} ({})", navId, path);
+                    LOGGER.debug("Navigating: {} ({})", navId, path);
                 } else {
-                    LOGGER.info("Navigating root");
+                    LOGGER.debug("Navigating root");
                 }
 
                 try {

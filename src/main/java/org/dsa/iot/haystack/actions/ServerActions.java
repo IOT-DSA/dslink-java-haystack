@@ -107,6 +107,7 @@ public class ServerActions {
                 Value vPR = event.getParameter("Poll Rate", ValueType.NUMBER);
                 Value vConnTimeout = event.getParameter("Connect Timeout");
                 Value vReadTimeout = event.getParameter("Read Timeout");
+                Value vMaxConn = event.getParameter("Max Connections");
 
                 String url = vUrl.getString();
                 String user = vUser.getString();
@@ -128,9 +129,11 @@ public class ServerActions {
                 int pollRate = vPR.getNumber().intValue();
                 int connTimeout = (int) (vConnTimeout.getNumber().doubleValue() * 1000);
                 int readTimeout = (int) (vReadTimeout.getNumber().doubleValue() * 1000);
+                int maxConn = vMaxConn.getNumber().intValue();
+                haystack.setMaxConnections(maxConn);
 
-                haystack.editConnection(
-                        url, user, pass, pollRate, connTimeout, readTimeout, vEnabled.getBool());
+                haystack.editConnection(url, user, pass, pollRate, connTimeout, readTimeout,
+                                        maxConn, vEnabled.getBool());
             }
         });
         {
@@ -170,6 +173,9 @@ public class ServerActions {
         a.addParameter(new Parameter(
                 "Read Timeout", ValueType.NUMBER, node.getConfig("read timeout"))
                                .setDescription("Read timeout in seconds"));
+        a.addParameter(new Parameter(
+                "Max Connections", ValueType.NUMBER, node.getConfig("maxConnections"))
+                               .setDescription("Max concurrent requests to server"));
         return a;
     }
 

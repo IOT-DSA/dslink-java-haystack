@@ -1,9 +1,11 @@
 package org.dsa.iot.haystack;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -42,12 +44,16 @@ import org.slf4j.LoggerFactory;
 public class Haystack {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Haystack.class);
+
     private final ConnectionHelper conn;
     private final NavHelper navHelper;
     private final Node node;
+    private Set<HRef> pendingSubscribe;
+    private Set<HRef> pendingUnsubscribe;
     private ScheduledFuture<?> pollFuture;
     private final ScheduledThreadPoolExecutor stpe;
     private final Map<String, Node> subs;
+    private boolean updating;
     private boolean watchEnabled;
 
     public Haystack(final Node node) {
@@ -83,6 +89,10 @@ public class Haystack {
         Value rto = node.getConfig("read timeout");
         if (rto == null) {
             node.setConfig("read timeout", new Value(60));
+        }
+
+        if (node.getConfig("maxConnections") == null) {
+            node.setConfig("maxConnections", new Value(5));
         }
 
         this.stpe = Objects.createDaemonThreadPool();
@@ -148,6 +158,7 @@ public class Haystack {
                                int pollRate,
                                int connTimeout,
                                int readTimeout,
+                               int maxConnections,
                                boolean enabled) {
         LOGGER.info("Edit Server url={} user={} enabled={}", url, user, enabled);
         node.setRoConfig("lu", new Value(0));
@@ -173,7 +184,7 @@ public class Haystack {
         if (!enabled) {
             Utils.getStatusNode(node).setValue(new Value("Disabled"));
         } else {
-            conn.editConnection(url, user, pass, connTimeout, readTimeout);
+            conn.editConnection(url, user, pass, connTimeout, readTimeout, maxConnections);
             setupPoll(pollRate);
         }
 
@@ -217,6 +228,24 @@ public class Haystack {
 
     public ScheduledThreadPoolExecutor getStpe() {
         return stpe;
+    }
+
+    public int getMaxConnections() {
+        Value v = node.getConfig("maxConnections");
+        if (v != null) {
+            Number n = v.getNumber();
+            if (n != null) {
+                return n.intValue();
+            }
+        }
+        return 5;
+    }
+
+    public void setMaxConnections(int max) {
+        if (max < 1) {
+            throw new IllegalArgumentException("Max connections must be > 1: " + max);
+        }
+        node.setConfig("maxConnections", new Value(max));
     }
 
     public static void init(Node superRoot) {
@@ -335,21 +364,50 @@ public class Haystack {
         conn.close();
     }
 
-    public void subscribe(HRef id, Node node) {
-        subscribe(id, node, true);
+    public void subscribe(final HRef id, Node node) {
+        if (!isEnabled() || !watchEnabled) {
+            return;
+        }
+        synchronized (this) {
+            subs.put(id.toString(), node);
+            if (pendingSubscribe == null) {
+                pendingSubscribe = new HashSet<>();
+            }
+            if (pendingUnsubscribe != null) {
+                pendingUnsubscribe.remove(id);
+            }
+            if (pendingSubscribe.add(id)) {
+                stpe.schedule(new Runnable() {
+                    @Override
+                    public void run() {
+                        updateSubscriptions();
+                    }
+                }, 2, TimeUnit.SECONDS);
+            }
+        }
     }
 
     public void unsubscribe(final HRef id) {
         if (!isEnabled() || !watchEnabled) {
             return;
         }
-        subs.remove(id.toString());
-        conn.getWatch(new StateHandler<HWatch>() {
-            @Override
-            public void handle(HWatch event) {
-                event.unsub(new HRef[]{id});
+        synchronized (this) {
+            subs.remove(id.toString());
+            if (pendingUnsubscribe == null) {
+                pendingUnsubscribe = new HashSet<>();
             }
-        });
+            if (pendingSubscribe != null) {
+                pendingSubscribe.remove(id);
+            }
+            if (pendingUnsubscribe.add(id)) {
+                stpe.schedule(new Runnable() {
+                    @Override
+                    public void run() {
+                        updateSubscriptions();
+                    }
+                }, 2, TimeUnit.SECONDS);
+            }
+        }
     }
 
     void destroy() {
@@ -425,19 +483,50 @@ public class Haystack {
         }, time, time, TimeUnit.SECONDS);
     }
 
-    private void subscribe(final HRef id, Node node, boolean add) {
-        if (!isEnabled() || !watchEnabled) {
-            return;
-        }
-        if (add) {
-            subs.put(id.toString(), node);
-        }
-
-        conn.getWatch(new StateHandler<HWatch>() {
-            @Override
-            public void handle(HWatch event) {
-                event.sub(new HRef[]{id});
+    private void updateSubscriptions() {
+        Set<HRef> toSubscribe;
+        Set<HRef> toUnsubscribe;
+        synchronized (this) {
+            if (updating) {
+                return;
             }
-        });
+            updating = true;
+            toSubscribe = pendingSubscribe;
+            toUnsubscribe = pendingUnsubscribe;
+            pendingSubscribe = null;
+            pendingUnsubscribe = null;
+        }
+        try {
+            while ((toSubscribe != null) || (toUnsubscribe != null)) {
+                if ((toSubscribe != null) && !toSubscribe.isEmpty()) {
+                    final HRef[] ids = new HRef[toSubscribe.size()];
+                    toSubscribe.toArray(ids);
+                    conn.getWatch(new StateHandler<HWatch>() {
+                        @Override
+                        public void handle(HWatch event) {
+                            event.sub(ids);
+                        }
+                    });
+                }
+                if ((toUnsubscribe != null) && !toUnsubscribe.isEmpty()) {
+                    final HRef[] ids = new HRef[toUnsubscribe.size()];
+                    toUnsubscribe.toArray(ids);
+                    conn.getWatch(new StateHandler<HWatch>() {
+                        @Override
+                        public void handle(HWatch event) {
+                            event.unsub(ids);
+                        }
+                    });
+                }
+                synchronized (this) {
+                    toSubscribe = pendingSubscribe;
+                    toUnsubscribe = pendingUnsubscribe;
+                    pendingSubscribe = null;
+                    pendingUnsubscribe = null;
+                }
+            }
+        } finally {
+            updating = false;
+        }
     }
 }
