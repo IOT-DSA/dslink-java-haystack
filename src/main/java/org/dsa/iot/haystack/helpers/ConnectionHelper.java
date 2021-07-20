@@ -182,6 +182,13 @@ public class ConnectionHelper {
                 //passthru
             } else if (connectFuture != null) {
                 if (onConnected != null) {
+                    while (queue.size() > 5000) {
+                        Handler<HClient> handler = queue.poll();
+                        try {
+                            handler.handle(null);
+                        } catch (Exception ignore) {
+                        }
+                    }
                     queue.add(onConnected);
                 }
                 return;
