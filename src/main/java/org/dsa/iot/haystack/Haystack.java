@@ -50,6 +50,7 @@ public class Haystack {
     private final Node node;
     private Set<HRef> pendingSubscribe;
     private Set<HRef> pendingUnsubscribe;
+    private boolean polling = false;
     private ScheduledFuture<?> pollFuture;
     private final ScheduledThreadPoolExecutor stpe;
     private final Map<String, Node> subs;
@@ -421,48 +422,61 @@ public class Haystack {
             return;
         }
 
-        conn.getWatch(new StateHandler<HWatch>() {
-            @Override
-            public void handle(HWatch event) {
-                HGrid grid = event.pollChanges();
-                if (grid == null) {
-                    return;
-                }
+        synchronized (this) {
+            if (polling) {
+                return;
+            }
+            polling = true;
+        }
 
-                Iterator<?> it = grid.iterator();
-                while (it.hasNext()) {
-                    HRow row = (HRow) it.next();
-                    Node node = subs.get(row.id().toString());
-                    if (node != null) {
-                        Map<String, Node> children = node.getChildren();
+        try {
+            conn.getWatch(new StateHandler<HWatch>() {
+                @Override
+                public void handle(HWatch event) {
+                    HGrid grid = event.pollChanges();
+                    if (grid == null) {
+                        return;
+                    }
 
-                        Iterator<?> rowIt = row.iterator();
-                        while (rowIt.hasNext()) {
-                            Map.Entry entry = (Map.Entry) rowIt.next();
-                            String name = (String) entry.getKey();
-                            HVal val = (HVal) entry.getValue();
-                            Value value = Utils.hvalToVal(val);
+                    Iterator<?> it = grid.iterator();
+                    while (it.hasNext()) {
+                        HRow row = (HRow) it.next();
+                        Node node = subs.get(row.id().toString());
+                        if (node != null) {
+                            Map<String, Node> children = node.getChildren();
 
-                            String encoded = StringUtils.encodeName(name);
-                            Node child = null;
-                            if (children != null) {
-                                child = children.get(encoded);
-                            }
-                            if (child != null) {
-                                child.setValueType(value.getType());
-                                child.setValue(value);
-                            } else {
-                                NodeBuilder b = Utils.getBuilder(node, encoded);
-                                b.setValueType(value.getType());
-                                b.setValue(value);
-                                Node n = b.build();
-                                n.setSerializable(false);
+                            Iterator<?> rowIt = row.iterator();
+                            while (rowIt.hasNext()) {
+                                Map.Entry entry = (Map.Entry) rowIt.next();
+                                String name = (String) entry.getKey();
+                                HVal val = (HVal) entry.getValue();
+                                Value value = Utils.hvalToVal(val);
+
+                                String encoded = StringUtils.encodeName(name);
+                                Node child = null;
+                                if (children != null) {
+                                    child = children.get(encoded);
+                                }
+                                if (child != null) {
+                                    child.setValueType(value.getType());
+                                    child.setValue(value);
+                                } else {
+                                    NodeBuilder b = Utils.getBuilder(node, encoded);
+                                    b.setValueType(value.getType());
+                                    b.setValue(value);
+                                    Node n = b.build();
+                                    n.setSerializable(false);
+                                }
                             }
                         }
                     }
                 }
+            });
+        } finally {
+            synchronized (this) {
+                polling = false;
             }
-        });
+        }
     }
 
     private void setupPoll(int time) {
@@ -526,7 +540,9 @@ public class Haystack {
                 }
             }
         } finally {
-            updating = false;
+            synchronized (this) {
+                updating = false;
+            }
         }
     }
 }
