@@ -325,9 +325,8 @@ public class Haystack {
         return false;
     }
 
-    public void nav(HVal navId, Handler<HGrid> onComplete) {
+    public void nav(final HVal navId, final Handler<HGrid> onComplete) {
         if (!isEnabled()) {
-            onComplete.handle(null);
             return;
         }
         HGrid grid = HGrid.EMPTY;

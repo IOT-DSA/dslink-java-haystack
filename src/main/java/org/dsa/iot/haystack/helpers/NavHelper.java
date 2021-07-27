@@ -60,6 +60,9 @@ public class NavHelper {
                                    boolean continueNav) {
         Iterator<?> navIt = nav.iterator();
         List<HRow> equipRefs = new ArrayList<>();
+        Value lu = new Value(System.currentTimeMillis());
+        lu.setSerializable(false);
+        node.setRoConfig("lu", lu);
         while (navIt != null && navIt.hasNext()) {
             final HRow row = (HRow) navIt.next();
 
@@ -77,9 +80,11 @@ public class NavHelper {
             // Handle child
             String encoded = StringUtils.encodeName(name);
             NodeBuilder builder = Utils.getBuilder(node, encoded);
-            HVal navId = row.get("navId", false);
+            final HVal navId = row.get("navId", false);
             if (navId != null) {
                 builder.setHasChildren(true);
+                builder.setRoConfig("navId", new Value(navId.toZinc()));
+                builder.setMetaData(haystack);
             }
 
             HVal dis = row.get("navName", false);
@@ -121,30 +126,30 @@ public class NavHelper {
                 }
             }
 
+            iterateRow(child, row);
+
             // Handle navId
             if (navId != null) {
                 LOGGER.debug("Received navId of {}", navId);
-
-                // Ensure proper data is attached to child
-                child.setRoConfig("navId", new Value(navId.toZinc()));
-                child.setMetaData(haystack);
-
                 // Navigate a level deeper
-                if (continueNav) {
-                    haystack.nav(navId, new Handler<HGrid>() {
-                        @Override
-                        public void handle(HGrid event) {
-                            iterateNavChildren(event, child, false);
-                        }
-                    });
+                if (continueNav && Utils.shouldUpdateList(child)) {
+                    stpe.execute(new Runnable() {
+                                     @Override
+                                     public void run() {
+                                         haystack.nav(navId, new Handler<HGrid>() {
+                                             @Override
+                                             public void handle(HGrid event) {
+                                                 iterateNavChildren(event, child, false);
+                                             }
+                                         });
+                                     }
+                                 }
+                    );
                 }
-
                 NodeListener listener = child.getListener();
                 listener.setOnListClosedHandler(ClosedHandler.get());
                 listener.setOnListHandler(ListHandler.get());
             }
-
-            iterateRow(child, row);
         }
 
         for (HRow row : equipRefs) {
@@ -156,20 +161,22 @@ public class NavHelper {
             // Handle child
             HVal val = row.get("equipRef");
             String ref = ((HRef) val).val;
-            String encoded = StringUtils.encodeName(ref);
-            Node n = node.getParent().getChild(encoded, false);
+            String encodedRef = StringUtils.encodeName(ref);
+            String encoded = StringUtils.encodeName(name);
+            Node n = node.getParent().getChild(encodedRef, false);
             if (n == null) {
-                if (encoded.equals(node.getName())) {
+                if (encodedRef.equals(node.getName())) {
                     n = node;
                 } else {
-                    n = node.createChild(encoded, false).build();
+                    n = node.createChild(encodedRef, false).setHasChildren(true).build();
                 }
             }
 
-            encoded = StringUtils.encodeName(name);
             NodeBuilder builder = Utils.getBuilder(n, encoded);
-            HVal navId = row.get("navId", false);
+            final HVal navId = row.get("navId", false);
             if (navId != null) {
+                builder.setRoConfig("navId", new Value(navId.toZinc()));
+                builder.setMetaData(haystack);
                 builder.setHasChildren(true);
             }
 
@@ -212,30 +219,31 @@ public class NavHelper {
                 }
             }
 
+            iterateRow(child, row);
+
             // Handle navId
             if (navId != null) {
                 LOGGER.debug("Received navId of {}", navId);
-
-                // Ensure proper data is attached to child
-                child.setRoConfig("navId", new Value(navId.toZinc()));
-                child.setMetaData(haystack);
-
                 // Navigate a level deeper
-                if (continueNav) {
-                    haystack.nav(navId, new Handler<HGrid>() {
-                        @Override
-                        public void handle(HGrid event) {
-                            iterateNavChildren(event, child.getParent(), false);
-                        }
-                    });
-                }
+                if (continueNav && Utils.shouldUpdateList(child.getParent())) {
+                    stpe.execute(new Runnable() {
+                                     @Override
+                                     public void run() {
+                                         haystack.nav(navId, new Handler<HGrid>() {
+                                             @Override
+                                             public void handle(HGrid event) {
+                                                 iterateNavChildren(event, child.getParent(), false);
+                                             }
+                                         });
 
+                                     }
+                                 }
+                    );
+                }
                 NodeListener listener = child.getListener();
                 listener.setOnListClosedHandler(ClosedHandler.get());
                 listener.setOnListHandler(ListHandler.get());
             }
-
-            iterateRow(child, row);
         }
     }
 
@@ -258,12 +266,11 @@ public class NavHelper {
                 continue;
             }
 
-            Node child = node.getChild(name, true);
-            if (child == null) {
-                child = node.createChild(name, true).build();
-            }
-            child.setValueType(value.getType());
-            child.setValue(value);
+            NodeBuilder builder = Utils.getBuilder(node, StringUtils.encodeName(name));
+            builder.setValueType(value.getType());
+            builder.setValue(value);
+
+            Node child = builder.getChild();
             boolean hasAction = false;
             switch (name) {
                 case "curVal":
@@ -289,11 +296,12 @@ public class NavHelper {
                     writable = val instanceof HMarker;
                     break;
                 default:
-                    child.setHasChildren(false);
+                    builder.setHasChildren(false);
             }
             if (!hasAction) {
-                child.setHasChildren(false);
+                builder.setHasChildren(false);
             }
+            builder.build();
 
             NodeListener listener = child.getListener();
             listener.setOnSubscribeHandler(subController.getSubHandler());
@@ -310,8 +318,6 @@ public class NavHelper {
                     htz = HTimeZone.make(tz, false);
                 }
                 new GetHistory(his, haystack, hid, htz);
-                //add to parent, but sometimes parent shows in metrics rather than nav tree
-                //new GetHistory(node, haystack, hid, htz);
             }
             if ((curVal != null) && writable && (kind != null)) {
                 Actions.getSetAction(haystack, curVal, hid, kind);

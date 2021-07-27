@@ -199,4 +199,18 @@ public class Utils {
         };
         return ValueType.makeEnum(enums);
     }
+
+    public static boolean shouldUpdateList(Node node) {
+        if (node == null) {
+            return true;
+        }
+        Value val = node.getRoConfig("lu");
+        if (val == null) {
+            return true;
+        }
+        long curr = System.currentTimeMillis();
+        long lastUpdate = val.getNumber().longValue();
+        long diff = curr - lastUpdate;
+        return (diff > ListHandler.REFRESH_TIME);
+    }
 }

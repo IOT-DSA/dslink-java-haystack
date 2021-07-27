@@ -8,6 +8,7 @@ import org.dsa.iot.dslink.node.Node;
 import org.dsa.iot.dslink.node.value.Value;
 import org.dsa.iot.dslink.util.handler.Handler;
 import org.dsa.iot.haystack.Haystack;
+import org.dsa.iot.haystack.Utils;
 import org.dsa.iot.haystack.helpers.NavHelper;
 import org.projecthaystack.HGrid;
 import org.projecthaystack.HUri;
@@ -22,8 +23,8 @@ import org.slf4j.LoggerFactory;
 public class ListHandler implements Handler<Node> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ListHandler.class);
-    private static final long REFRESH_TIME = TimeUnit.SECONDS.toMillis(60);
     private static final ListHandler HANDLER = new ListHandler();
+    public static final long REFRESH_TIME = TimeUnit.SECONDS.toMillis(60);
 
     private ListHandler() {
     }
@@ -35,6 +36,9 @@ public class ListHandler implements Handler<Node> {
         }
         final Haystack haystack = event.getMetaData();
         if (haystack == null) {
+            return;
+        }
+        if (!Utils.shouldUpdateList(event)) {
             return;
         }
         final NavHelper helper = haystack.getNavHelper();
@@ -53,16 +57,7 @@ public class ListHandler implements Handler<Node> {
             navId = null;
         }
 
-        Value val = event.getRoConfig("lu");
-        long curr = System.currentTimeMillis();
-        if (val != null) {
-            long lastUpdate = val.getNumber().longValue();
-            long diff = curr - lastUpdate;
-            if (diff < REFRESH_TIME) {
-                return;
-            }
-        }
-        val = new Value(curr);
+        Value val = new Value(System.currentTimeMillis());
         val.setSerializable(false);
         event.setRoConfig("lu", val);
 
