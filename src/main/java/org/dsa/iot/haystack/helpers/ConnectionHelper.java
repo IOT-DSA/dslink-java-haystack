@@ -83,6 +83,7 @@ public class ConnectionHelper {
     }
 
     public void close() {
+        LOGGER.info("Connection closed: " + haystack.getNode().getName());
         synchronized (lock) {
             if (connectFuture != null) {
                 connectFuture.cancel(false);
@@ -130,6 +131,7 @@ public class ConnectionHelper {
             }
         } catch (Exception e) {
             if (e instanceof CallNetworkException) {
+                LOGGER.warn("Connection closed", e);
                 close();
             } else {
                 throw new RuntimeException(e);
@@ -270,7 +272,7 @@ public class ConnectionHelper {
                     statusNode.setValue(new Value(err));
                 }
                 close();
-                LOGGER.warn(err);
+                LOGGER.warn(err, e);
             }
         }
     }

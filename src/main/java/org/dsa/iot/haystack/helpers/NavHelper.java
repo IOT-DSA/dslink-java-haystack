@@ -133,18 +133,12 @@ public class NavHelper {
                 LOGGER.debug("Received navId of {}", navId);
                 // Navigate a level deeper
                 if (continueNav && Utils.shouldUpdateList(child)) {
-                    stpe.execute(new Runnable() {
-                                     @Override
-                                     public void run() {
-                                         haystack.nav(navId, new Handler<HGrid>() {
-                                             @Override
-                                             public void handle(HGrid event) {
-                                                 iterateNavChildren(event, child, false);
-                                             }
-                                         });
-                                     }
-                                 }
-                    );
+                    haystack.nav(navId, new Handler<HGrid>() {
+                        @Override
+                        public void handle(HGrid event) {
+                            iterateNavChildren(event, child, false);
+                        }
+                    });
                 }
                 NodeListener listener = child.getListener();
                 listener.setOnListClosedHandler(ClosedHandler.get());
@@ -226,19 +220,12 @@ public class NavHelper {
                 LOGGER.debug("Received navId of {}", navId);
                 // Navigate a level deeper
                 if (continueNav && Utils.shouldUpdateList(child.getParent())) {
-                    stpe.execute(new Runnable() {
-                                     @Override
-                                     public void run() {
-                                         haystack.nav(navId, new Handler<HGrid>() {
-                                             @Override
-                                             public void handle(HGrid event) {
-                                                 iterateNavChildren(event, child.getParent(), false);
-                                             }
-                                         });
-
-                                     }
-                                 }
-                    );
+                    haystack.nav(navId, new Handler<HGrid>() {
+                        @Override
+                        public void handle(HGrid event) {
+                            iterateNavChildren(event, child.getParent(), false);
+                        }
+                    });
                 }
                 NodeListener listener = child.getListener();
                 listener.setOnListClosedHandler(ClosedHandler.get());
