@@ -2,9 +2,9 @@ apply plugin: 'application'
 apply plugin: 'java-library'
 
 mainClassName = 'org.dsa.iot.haystack.Main'
-sourceCompatibility = 1.7
-targetCompatibility = 1.7
-version = '0.8.8'
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+version = '1.0.0'
 
 repositories {
     mavenLocal()
@@ -13,7 +13,8 @@ repositories {
 }
  
 dependencies {
-    api 'org.iot-dsa:historian:0.24.2'
+    //api 'org.iot-dsa:historian:0.24.2' //maven local install
+    api 'com.github.iot-dsa:sdk-dslink-java:1.0.0'
     implementation 'com.github.skyfoundry:haystack-java:3.0.7'
 }
 
@@ -23,7 +24,7 @@ run {
 }
 
 wrapper {
-    gradleVersion = '6.8'
+    gradleVersion = '6.8.3'
 }
 
 applicationDistribution.from new File(project.projectDir, "/dslink.json")
