@@ -50,7 +50,6 @@ public class Haystack {
     private final Node node;
     private Set<HRef> pendingSubscribe;
     private Set<HRef> pendingUnsubscribe;
-    private boolean polling = false;
     private ScheduledFuture<?> pollFuture;
     private final ScheduledThreadPoolExecutor stpe;
     private final Map<String, Node> subs;
@@ -123,6 +122,10 @@ public class Haystack {
                 watchEnabled = false;
                 pollFuture.cancel(false);
                 pollFuture = null;
+                synchronized (this) {
+                    pendingSubscribe = null;
+                    pendingUnsubscribe = null;
+                }
             }
         });
         if (enabled.getBool()) {
@@ -325,9 +328,8 @@ public class Haystack {
         return false;
     }
 
-    public void nav(HVal navId, Handler<HGrid> onComplete) {
+    public void nav(final HVal navId, final Handler<HGrid> onComplete) {
         if (!isEnabled()) {
-            onComplete.handle(null);
             return;
         }
         HGrid grid = HGrid.EMPTY;
@@ -365,49 +367,45 @@ public class Haystack {
         conn.close();
     }
 
-    public void subscribe(final HRef id, Node node) {
+    public synchronized void subscribe(final HRef id, Node node) {
+        subs.put(id.toString(), node);
         if (!isEnabled() || !watchEnabled) {
             return;
         }
-        synchronized (this) {
-            subs.put(id.toString(), node);
-            if (pendingSubscribe == null) {
-                pendingSubscribe = new HashSet<>();
-            }
-            if (pendingUnsubscribe != null) {
-                pendingUnsubscribe.remove(id);
-            }
-            if (pendingSubscribe.add(id)) {
-                stpe.schedule(new Runnable() {
-                    @Override
-                    public void run() {
-                        updateSubscriptions();
-                    }
-                }, 2, TimeUnit.SECONDS);
-            }
+        if (pendingSubscribe == null) {
+            pendingSubscribe = new HashSet<>();
+        }
+        if (pendingUnsubscribe != null) {
+            pendingUnsubscribe.remove(id);
+        }
+        if (pendingSubscribe.add(id)) {
+            stpe.schedule(new Runnable() {
+                @Override
+                public void run() {
+                    updateSubscriptions();
+                }
+            }, 1, TimeUnit.SECONDS);
         }
     }
 
-    public void unsubscribe(final HRef id) {
+    public synchronized void unsubscribe(final HRef id) {
+        subs.remove(id.toString());
         if (!isEnabled() || !watchEnabled) {
             return;
         }
-        synchronized (this) {
-            subs.remove(id.toString());
-            if (pendingUnsubscribe == null) {
-                pendingUnsubscribe = new HashSet<>();
-            }
-            if (pendingSubscribe != null) {
-                pendingSubscribe.remove(id);
-            }
-            if (pendingUnsubscribe.add(id)) {
-                stpe.schedule(new Runnable() {
-                    @Override
-                    public void run() {
-                        updateSubscriptions();
-                    }
-                }, 2, TimeUnit.SECONDS);
-            }
+        if (pendingUnsubscribe == null) {
+            pendingUnsubscribe = new HashSet<>();
+        }
+        if (pendingSubscribe != null) {
+            pendingSubscribe.remove(id);
+        }
+        if (pendingUnsubscribe.add(id)) {
+            stpe.schedule(new Runnable() {
+                @Override
+                public void run() {
+                    updateSubscriptions();
+                }
+            }, 1, TimeUnit.SECONDS);
         }
     }
 
@@ -422,61 +420,48 @@ public class Haystack {
             return;
         }
 
-        synchronized (this) {
-            if (polling) {
-                return;
-            }
-            polling = true;
-        }
+        conn.getWatch(new StateHandler<HWatch>() {
+            @Override
+            public void handle(HWatch event) {
+                HGrid grid = event.pollChanges();
+                if (grid == null) {
+                    return;
+                }
 
-        try {
-            conn.getWatch(new StateHandler<HWatch>() {
-                @Override
-                public void handle(HWatch event) {
-                    HGrid grid = event.pollChanges();
-                    if (grid == null) {
-                        return;
-                    }
+                Iterator<?> it = grid.iterator();
+                while (it.hasNext()) {
+                    HRow row = (HRow) it.next();
+                    Node node = subs.get(row.id().toString());
+                    if (node != null) {
+                        Map<String, Node> children = node.getChildren();
 
-                    Iterator<?> it = grid.iterator();
-                    while (it.hasNext()) {
-                        HRow row = (HRow) it.next();
-                        Node node = subs.get(row.id().toString());
-                        if (node != null) {
-                            Map<String, Node> children = node.getChildren();
+                        Iterator<?> rowIt = row.iterator();
+                        while (rowIt.hasNext()) {
+                            Map.Entry entry = (Map.Entry) rowIt.next();
+                            String name = (String) entry.getKey();
+                            HVal val = (HVal) entry.getValue();
+                            Value value = Utils.hvalToVal(val);
 
-                            Iterator<?> rowIt = row.iterator();
-                            while (rowIt.hasNext()) {
-                                Map.Entry entry = (Map.Entry) rowIt.next();
-                                String name = (String) entry.getKey();
-                                HVal val = (HVal) entry.getValue();
-                                Value value = Utils.hvalToVal(val);
-
-                                String encoded = StringUtils.encodeName(name);
-                                Node child = null;
-                                if (children != null) {
-                                    child = children.get(encoded);
-                                }
-                                if (child != null) {
-                                    child.setValueType(value.getType());
-                                    child.setValue(value);
-                                } else {
-                                    NodeBuilder b = Utils.getBuilder(node, encoded);
-                                    b.setValueType(value.getType());
-                                    b.setValue(value);
-                                    Node n = b.build();
-                                    n.setSerializable(false);
-                                }
+                            String encoded = StringUtils.encodeName(name);
+                            Node child = null;
+                            if (children != null) {
+                                child = children.get(encoded);
+                            }
+                            if (child != null) {
+                                child.setValueType(value.getType());
+                                child.setValue(value);
+                            } else {
+                                NodeBuilder b = Utils.getBuilder(node, encoded);
+                                b.setValueType(value.getType());
+                                b.setValue(value);
+                                Node n = b.build();
+                                n.setSerializable(false);
                             }
                         }
                     }
                 }
-            });
-        } finally {
-            synchronized (this) {
-                polling = false;
             }
-        }
+        });
     }
 
     private void setupPoll(int time) {
