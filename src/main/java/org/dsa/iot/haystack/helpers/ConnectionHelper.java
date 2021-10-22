@@ -16,6 +16,7 @@ import org.dsa.iot.haystack.Haystack;
 import org.dsa.iot.haystack.Utils;
 import org.dsa.iot.haystack.handlers.ListHandler;
 import org.projecthaystack.HGrid;
+import org.projecthaystack.HVal;
 import org.projecthaystack.HWatch;
 import org.projecthaystack.client.CallErrException;
 import org.projecthaystack.client.CallHttpException;
@@ -237,7 +238,18 @@ public class ConnectionHelper {
                     HGrid grid = client.ops();
                     Set<String> ops = new HashSet<>();
                     for (int i = 0; i < grid.numRows(); ++i) {
-                        ops.add(grid.row(i).get("name").toString());
+                        HVal val = grid.row(i).get("name", false);
+                        if (val != null) {
+                            ops.add(val.toString());
+                        } else {
+                            val = grid.row(i).get("def", false);
+                            if (val != null) {
+                                String s = val.toString();
+                                if (s.startsWith("op:")) {
+                                    ops.add(s.substring(3));
+                                }
+                            }
+                        }
                     }
 
                     if (watchEnabled != null && watchDisabled != null) {
